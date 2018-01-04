@@ -1,1 +1,3 @@
-# racket-neuron
+# Neuron
+
+Decentralized social software
