@@ -1,3 +1,3 @@
 # Neuron
 
-Decentralized social software
+Decentralized Software Organisms
