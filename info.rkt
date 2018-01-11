@@ -4,7 +4,7 @@
 
 (define deps '("base"))
 
-(define build-deps '("scribble-lib" "racket-doc"))
+(define build-deps '("racket-doc" "scribble-lib"))
 
 (define scribblings
   '(("scribblings/main.scrbl" (multi-page) (library) "neuron")))
