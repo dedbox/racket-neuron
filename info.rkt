@@ -7,4 +7,4 @@
 (define build-deps '("scribble-lib" "racket-doc"))
 
 (define scribblings
-  '(("scribblings/neuron.scrbl" (multi-page) (library) "neuron")))
+  '(("scribblings/main.scrbl" (multi-page) (library) "neuron")))
