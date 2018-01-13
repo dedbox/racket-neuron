@@ -1,15 +1,8 @@
 #lang scribble/manual
 
-@(require "base.rkt"
-          pict
-          racket/format
-          scriblib/autobib
-          scriblib/bibtex)
+@(require "base.rkt")
 
 @(require (for-label neuron))
-
-@(define-bibtex-cite "scribblings/refs.bib" ~cite citet generate-bibliography
-                     #:style number-style)
 
 @title{Neuron: Decentralized Software Organisms}
 @author{@author+email["Eric Griffis" "dedbox@gmail.com"]}
@@ -41,36 +34,3 @@ software organisms.
 @include-section["distribute.scrbl"]
 @include-section["decentralize.scrbl"]
 @include-section["organize.scrbl"]
-
-@; -----------------------------------------------------------------------------
-
-@; @itemlist[
-@;   @item{@racketmodname[neuron/concurrency] -- lightweight process networks}
-
-@;   @item{@racketmodname[neuron/io] -- byte streams}
-
-@;   @item{@racketmodname[neuron/serializer] -- parsing and printing}
-
-@;   @item{@racketmodname[neuron/distributed] -- fault tolerance}
-
-@;   @item{@racketmodname[neuron/evaluator] -- portability and process mobility}
-
-@;   @item{@racketmodname[neuron/decentralized] -- cooperation and trust}
-
-@;   @item{@racketmodname[neuron/social] -- identity, association, and
-@;   accountability}
-@; ]
-
-@; @larger{@bold{The Architecture}}
-
-@; The @emph{soma} is ambient structure. It serves the nucleus as a messaging
-@; medium.
-
-@; The @emph{nucleus} encodes behavior and mediates message activity.
-
-@; @emph{Glia} are helpers. They provide regularity, stability, and safety.
-
-@; @emph{Myelin} insulates the axon from its environment to maintain the
-@; integrity of the channel.
-
-@; @(generate-bibliography)
