@@ -1,7 +1,9 @@
 #lang at-exp racket/base
 
-(require scribble/manual)
-(provide (all-from-out scribble/manual))
+(require pict
+         scribble/manual)
+(provide (all-from-out pict)
+         (all-from-out scribble/manual))
 
 (require (for-label racket/base
                     racket/contract))
@@ -11,9 +13,9 @@
 (require (for-label neuron))
 (provide (for-label (all-from-out neuron)))
 
-(require pict
-         racket/function)
 (provide layer)
+
+(require racket/function)
 
 (define (layer w h str
                #:t [t (hline (- w 1) 1)]
