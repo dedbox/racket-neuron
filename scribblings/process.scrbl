@@ -12,20 +12,44 @@
 @; Dendrites are synaptic sites. Several of a neuron's dendrites may fire
 @; simultaneously.
 
-A @deftech{process} is a concurrency abstraction like a @racket-tech{thread}.
-Under the hood, processes communicate via @racket-tech{channel}
-synchronization. Every process has an @deftech{input channel} and an
-@deftech{output channel}.
+A @deftech{process} is a @racket-tech{thread}-like concurrency primitive.
+Processes extend the Racket @racket-tech{thread} model with three features:
 
-A process can be applied as a procedure, which invokes its @tech{command
-handler}. More precisely, @code|{(π v ...)}| is equivalent to @code|{(command
-π v ...)}|.
+@itemlist[
+  @item{A pair of @racket-tech{channels} built in: an @deftech{input channel}
+    and an @deftech{output channel}.}
+  @item{An @deftech{on-stop hook} to call when a process ends gracefully, but
+    not when it dies abruptly.}
+  @item{An out-of-band @tech{command handler}.}
+]
+
+Unhandled exceptions are fatal. Attempting to @racket[wait] on a process
+killed by an unhandled exception raises @racket[exn:fail:unhandled].
+
+@; @examples[
+@racketblock[
+  (define π (start (λ () (raise 'VAL))))
+  (wait π)
+]
+
+A process can be applied as a procedure, which invokes its @deftech{command
+handler}. The @tech{command handler} can be any procedure.
+
+Example:
+@; @examples[
+@racketblock[
+  (define π (start deadlock #:command (hash 'prop1 1 'method2 (λ _ 2))))
+  (π 'prop1)
+  ((π 'method2) 5)
+]
 
 A process can be used as a @racket-tech{synchronizable event}. A process is
 @racket-tech{ready for synchronization} when @racket[wait] would not block.
 The synchronization result is the process itself.
 
 @section{Starting and Stopping Processes}
+
+Processes are created explicitly by the @racket[start] function.
 
 @defproc[(process? [v any/c]) boolean?]{
   Returns @racket[#t] if @racket[v] is a @tech{process}, @racket[#f]
@@ -45,37 +69,9 @@ The synchronization result is the process itself.
                 [#:command handler procedure? void]
                 ) process?]{
   Calls @racket[thunk] with no arguments in a new process with
-  @racket[handler] installed as its @tech{command handler}. Returns
-  immediately with a @deftech{process descriptor} value. Calls
-  @racket[on-stop] if and when the process terminates gracefully or ends
-  without interruption.
-
-  The @deftech{command handler} can be any procedure.
-
-  Example:
-  @; @examples[
-  @racketblock[
-    (define π (start deadlock #:command (hash 'prop1 1 'method2 (λ _ 2))))
-    (π 'prop1)
-    ((π 'method2) 5)
-  ]
-
-  Unhandled exceptions are immediately fatal to a process. Attempting to
-  @racket[wait] on a process killed by an unhandled exception raises
-  @racket[exn:fail:unhandled].
-
-  @; @examples[
-  @racketblock[
-    (define π (start (λ () (raise 'VAL))))
-    (sync π)
-  ]
-}
-
-@defproc[(command [π process?]
-                  [v any/c] ...
-                  ) any]{
-  Applies the @tech{command handler} of @racket[π] to @racket[v]s inside
-  the calling process and returns the result.
+  @racket[on-stop] as its @tech{on-stop hook} and @racket[handler] as its
+  @tech{command handler}. Returns immediately with a @deftech{process
+  descriptor} value.
 }
 
 @defproc[(stop [π process?]) void?]{
@@ -92,32 +88,25 @@ The synchronization result is the process itself.
   Blocks execution of the current process until @racket[π] is dead.
 }
 
-@defproc[(dead-evt [π process?]) evt?]{
-  Returns a @racket-tech{synchronizable event} that is @racket-tech{ready for
-  synchronization} if and only if @racket[π] is dead. The
-  @racket-tech{synchronization result} of a dead event is the dead event
-  itself.
-}
-
 @defproc[(current-process) process?]{
   Returns the @tech{process descriptor} for the currently executing process.
 }
 
 @defproc[(quit [v any/c] ...) void?]{
-  Gracefully terminates the current process. Arguments are ignored.
+  Gracefully terminates the current process, ignoring any arguments.
 }
 
 @defproc[(die [v any/c] ...) void?]{
-  Immediately terminates the current process. Arguments are ignored.
+  Immediately terminates the current process, ignoring any arguments.
 }
 
 @defproc[(deadlock [v any/c] ...) void?]{
-  Deadlocks the current process. Arguments are ignored.
+  Hangs the current process, ignoring any arguments.
 }
 
 @defstruct[(exn:fail:unhandled exn:fail) ([val any/c]) #:transparent]{
-  Raised when a process attempts to @racket[wait] on a process killed by an
-  unhandled exception.
+  Raised when attempting to @racket[wait] on a process killed by an unhandled
+  exception.
 }
 
 @section{Inter-Process Communication}
@@ -126,7 +115,7 @@ The synchronization result is the process itself.
   A flat contract that accepts any non-@racket[eof] value.
 }
 
-@subsection{IPC Commands}
+@subsection{Commands}
 
 @defproc[(give [π process?]
                [v msg/c (void)]) boolean?]{
@@ -161,7 +150,7 @@ The synchronization result is the process itself.
   @racket[π], or @racket[#f] immediately if no value is available.
 }
 
-@subsection{IPC Events}
+@subsection{Events}
 
 @defproc[(give-evt [π process?] [v msg/c (void)]) evt?]{
   Returns a fresh @racket-tech{synchronizable event} that becomes
@@ -239,16 +228,16 @@ The synchronization result is the process itself.
 
 @defproc[(evt-loop [next-evt (-> any/c evt?)]) evt?]{
   Returns a fresh @racket-tech{synchronizable event} that is never
-  @racket-tech{ready for synchronization}. Repeatedly applies
-  @racket[next-evt] to a single argument and immediately @racket[sync]s the
-  result. Applies @racket[next-evt] first to @racket[(void)], then to the
+  @racket-tech{ready for synchronization}. Repeatedly calls @racket[next-evt]
+  with a single argument and immediately @racket[sync]s the result. Applies
+  @racket[next-evt] first to @racket[(void)], then to the
   @racket-tech{synchronization result} of the previous event.
 }
 
-@defproc[(serve [proc (-> msg/c msg/c)]
-                [#:on-stop on-stop (-> any) void]
-                [#:command handler procedure? void]
-                ) process?]{
+@defproc[(server [proc (-> msg/c msg/c)]
+                 [#:on-stop on-stop (-> any) void]
+                 [#:command handler procedure? void]
+                 ) process?]{
   Returns a @deftech{server process}. Applies @racket[proc] to each value
   taken and emits the result.
 }
@@ -271,6 +260,7 @@ The synchronization result is the process itself.
 
 @defproc[(socket [snk process?]
                  [src process?]
+                 [#:on-stop on-stop (-> any) void]
                  [#:command handler procedure? void]
                  ) process?]{
   Returns a @deftech{socket process}. Gives to @racket[snk] what it takes.
@@ -279,16 +269,18 @@ The synchronization result is the process itself.
 }
 
 @defproc[(pipe [π process?] ...
+               [#:on-stop on-stop (-> any) void]
                [#:command handler procedure? void]
                ) process?]{
-  Returns a @deftech{pipe process}. Gives to the first @racket[π] what it
-  takes. Iteratively gives to the next @racket[π] what it receives from the
-  prior @racket[π]. Emits what it takes from the last @racket[π]. Stops
-  @racket[π]s when it stops. Dies when any @racket[π] dies.
+  Returns a @deftech{pipe process}. Gives what it takes to the first
+  @racket[π]. Iteratively gives to the next @racket[π] what it receives from
+  the previous. Emits what it receives from the last @racket[π]. Stops
+  all @racket[π]s when it stops. Dies when any @racket[π] dies.
 }
 
 @defproc[(bridge [π1 process?]
                  [π2 process?]
+                 [#:on-stop on-stop (-> any) void]
                  [#:command handler procedure? void]
                  ) process?]{
   Returns a @deftech{bridge process}. Gives to @racket[π2] what it receives
@@ -296,34 +288,36 @@ The synchronization result is the process itself.
   stops. Dies when @racket[π1] or @racket[π2] die.
 }
 
-@defproc[(proxy [π process?]
-                [on-take (-> msg/c msg/c) values]
-                [on-emit (-> msg/c msg/c) values]
-                [#:command handler procedure? void]
-                ) process?]{
-  Returns a @deftech{proxy process}. Applies @racket[on-take] to each value
+@defproc[(filter [π process?]
+                 [on-take (-> msg/c msg/c) values]
+                 [on-emit (-> msg/c msg/c) values]
+                 [#:on-stop on-stop (-> any) void]
+                 [#:command handler procedure? void]
+                 ) process?]{
+  Returns a @deftech{filter process}. Applies @racket[on-take] to each value
   taken and gives the result to @racket[π]. Applies @racket[on-emit] to each
   value emitted by @racket[π] and emits the result. Stops @racket[π] when it
   stops. Dies when @racket[π] dies.
 }
 
 @defproc[(managed [π process?]
-                  [#:on-eof on-eof (-> any) stop]
+                  [#:on-eof on-eof (-> process? any) stop]
                   [#:on-stop on-stop (-> any) void]
                   [#:command handler procedure? void]
                   ) process?]{
-  Returns a @deftech{managed process}. Applies @racket[on-eof] to @racket[π]
-  when it takes or emits @racket[eof]. Stops @racket[π] when it stops. Dies
-  when @racket[π] dies.
+  Returns a @deftech{managed process}. Gives what it takes to @racket[π].
+  Emits what it receives from @racket[π]. Applies @racket[on-eof] to
+  @racket[π] when it takes or emits @racket[eof]. Stops @racket[π] when it
+  stops. Dies when @racket[π] dies.
 }
 
 @defproc[(shutdown [π process?]) void?]{
-  Gives @racket[eof] to @racket[π]. Blocks until π is dead.
+  Gives @racket[eof] to @racket[π]. Blocks until @racket[π] is dead.
 }
 
 @defproc[(shutdown-evt [π process?]) evt?]{
-  Returns a fresh @racket-tech{synchronizable event} that becomes
-  @racket-tech{ready for synchronization} when @racket[(shutdown π)] would not
-  block. The @racket-tech{synchronization result} is the same as the
-  @racket[shutdown] result.
+  Returns a @racket-tech{synchronizable event} that becomes @racket-tech{ready
+  for synchronization} when @racket[(shutdown π)] would not block. The
+  @racket-tech{synchronization result} is the same as the @racket[shutdown]
+  result.
 }
