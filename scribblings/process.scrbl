@@ -16,8 +16,8 @@ A @deftech{process} is a @racket-tech{thread}-like concurrency primitive.
 Processes extend the Racket @racket-tech{thread} model with four features:
 
 @itemlist[
-  @item{A pair of @racket-tech{channels} built in: an @deftech{input channel}
-    and an @deftech{output channel}.}
+  @item{A pair of unbuffered @racket-tech{channels} built in: an
+    @deftech{input channel} and an @deftech{output channel}.}
   @item{An @deftech{on-stop hook} to call when a process ends gracefully, but
     not when it dies abruptly.}
   @item{An @deftech{on-dead hook} to call unconditionally when a process
