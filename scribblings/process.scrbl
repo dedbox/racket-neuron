@@ -26,7 +26,7 @@ Processes extend the Racket @racket-tech{thread} model with four features:
 ]
 
 Unhandled exceptions are fatal. Attempting to @racket[wait] on a process
-killed by an unhandled exception raises @racket[exn:fail:unhandled].
+killed by an unhandled exception raises @racket[exn:unhandled].
 
 @; @examples[
 @racketblock[
