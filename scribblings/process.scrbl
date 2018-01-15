@@ -134,7 +134,7 @@ Processes are created explicitly by the @racket[start] function.
 
 @defproc[(try-take) any/c]{
   Returns the value, if any, provided on the @tech{input channel} of the
-  current process, or @racket[#f] immediately if no value is available.
+  current process, or @racket[#f] if no value is available.
 }
 
 @defproc[(emit [v msg/c (void)]) void?]{
@@ -150,7 +150,7 @@ Processes are created explicitly by the @racket[start] function.
 
 @defproc[(try-recv [π process?]) any/c]{
   Returns the value, if any, provided on the @tech{output channel} of
-  @racket[π], or @racket[#f] immediately if no value is available.
+  @racket[π], or @racket[#f] if no value is available.
 }
 
 @defproc[(give-evt [π process?] [v msg/c (void)]) evt?]{
