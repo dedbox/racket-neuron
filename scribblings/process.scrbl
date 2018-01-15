@@ -155,30 +155,31 @@ Processes are created explicitly by the @racket[start] function.
 
 @defproc[(give-evt [π process?] [v msg/c (void)]) evt?]{
   Returns a fresh @racket-tech{synchronizable event} that becomes
-  @racket-tech{ready for synchronization} when @racket[give] would not block.
-  The @racket-tech{synchronization result} is the same as the @racket[give]
-  result.
+  @racket-tech{ready for synchronization} when @racket[π] is ready to accept
+  the value @racket[v] on its @tech{input channel}, or until @racket[π] is
+  dead. The @racket-tech{synchronization result} is @racket[#t] if @racket[π]
+  accepted @racket[v], @racket[#f] otherwise.
 }
 
 @defproc[(take-evt) evt?]{
   Returns a constant @racket-tech{synchronizable event} that becomes
-  @racket-tech{ready for synchronization} when @racket[take] would not block.
-  The @racket-tech{synchronization result} is the same as the @racket[take]
-  result.
+  @racket-tech{ready for synchronization} when a sender is ready to provide a
+  value on the @tech{input channel} of the current process. The
+  @racket-tech{synchronization result} is the provided value.
 }
 
 @defproc[(emit-evt [v msg/c (void)]) evt?]{
   Returns a fresh @racket-tech{synchronizable event} that becomes
-  @racket-tech{ready for synchronization} when @racket[emit] would not block.
-  The @racket-tech{synchronization result} is the same as the @racket[emit]
-  result.
+  @racket-tech{ready for synchronization} when a receiver is ready to accept
+  the value @racket[v] through the @tech{output channel} of the current
+  process.
 }
 
 @defproc[(recv-evt [π process?]) evt?]{
   Returns a constant @racket-tech{synchronizable event} that becomes
-  @racket-tech{ready for synchronization} when @racket[recv] would not block.
-  The @racket-tech{synchronization result} is the same as the @racket[recv]
-  result.
+  @racket-tech{ready for synchronization} when @racket[π] is ready to provide
+  a value through its @tech{output channel}, or until @racket[π] is dead. The
+  @racket-tech{synchronization result} is the provided value or @racket[eof].
 }
 
 @section{Control Flow}
