@@ -127,12 +127,12 @@ Processes are created explicitly by the @racket[start] function.
   @racket[π] accepted @racket[v], @racket[#f] otherwise.
 }
 
-@defproc[(take) any/c]{
+@defproc[(take) msg/c]{
   Blocks until a sender is ready to provide a value on the @tech{input
   channel} of the current process. Returns the provided value.
 }
 
-@defproc[(try-take) any/c]{
+@defproc[(try-take) msg/c]{
   Returns the value, if any, provided on the @tech{input channel} of the
   current process, or @racket[#f] if no value is available.
 }
