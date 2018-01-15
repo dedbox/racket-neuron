@@ -13,13 +13,15 @@
 @; simultaneously.
 
 A @deftech{process} is a @racket-tech{thread}-like concurrency primitive.
-Processes extend the Racket @racket-tech{thread} model with three features:
+Processes extend the Racket @racket-tech{thread} model with four features:
 
 @itemlist[
   @item{A pair of @racket-tech{channels} built in: an @deftech{input channel}
     and an @deftech{output channel}.}
   @item{An @deftech{on-stop hook} to call when a process ends gracefully, but
     not when it dies abruptly.}
+  @item{An @deftech{on-dead hook} to call unconditionally when a process
+    terminates.}
   @item{An out-of-band @tech{command handler}.}
 ]
 
@@ -51,43 +53,6 @@ The synchronization result is the process itself.
 
 Processes are created explicitly by the @racket[start] function.
 
-@defproc[(process? [v any/c]) boolean?]{
-  Returns @racket[#t] if @racket[v] is a @tech{process}, @racket[#f]
-  otherwise.
-}
-
-@defproc[(dead? [π process?]) boolean?]{
-  Returns @racket[#t] if @racket[π] has terminated, @racket[#f] otherwise.
-}
-
-@defproc[(alive? [π process?]) boolean?]{
-  Returns @racket[#t] if @racket[π] is not dead, @racket[#f] otherwise.
-}
-
-@defproc[(start [thunk (-> any)]
-                [#:on-stop on-stop (-> any) void]
-                [#:command handler procedure? void]
-                ) process?]{
-  Calls @racket[thunk] with no arguments in a new process with
-  @racket[on-stop] as its @tech{on-stop hook} and @racket[handler] as its
-  @tech{command handler}. Returns immediately with a @deftech{process
-  descriptor} value.
-}
-
-@defproc[(stop [π process?]) void?]{
-  Gracefully terminates the execution of @racket[π] if it is running. If
-  @racket[π] is already dead, @racket[stop] has no effect.
-}
-
-@defproc[(kill [π process?]) void?]{
-  Immediately terminates the execution of @racket[π] if it is running. If
-  @racket[π] is already dead, @racket[kill] has no effect.
-}
-
-@defproc[(wait [π process?]) void?]{
-  Blocks execution of the current process until @racket[π] is dead.
-}
-
 @defproc[(current-process) process?]{
   Returns the @tech{process descriptor} for the currently executing process.
 }
@@ -104,7 +69,47 @@ Processes are created explicitly by the @racket[start] function.
   Hangs the current process, ignoring any arguments.
 }
 
-@defstruct[(exn:fail:unhandled exn:fail) ([val any/c]) #:transparent]{
+@defproc[(process? [v any/c]) boolean?]{
+  Returns @racket[#t] if @racket[v] is a @tech{process}, @racket[#f]
+  otherwise.
+}
+
+@defproc[(dead? [π process?]) boolean?]{
+  Returns @racket[#t] if @racket[π] has terminated, @racket[#f] otherwise.
+}
+
+@defproc[(alive? [π process?]) boolean?]{
+  Returns @racket[#t] if @racket[π] is not dead, @racket[#f] otherwise.
+}
+
+@defproc[(start [thunk (-> any)]
+                [#:on-stop on-stop (-> any) void]
+                [#:on-dead on-dead (-> any) void]
+                [#:command handler procedure? void]
+                ) process?]{
+  Calls @racket[thunk] with no arguments in a new process. Installs
+  @racket[on-stop] as its @tech{on-stop hook}, @racket[on-dead] as its
+  @tech{on-dead hook}, and @racket[handler] as its @tech{command handler}.
+  Returns immediately with a @deftech{process descriptor} value.
+}
+
+@defproc[(stop [π process?]) void?]{
+  Gracefully terminates the execution of @racket[π] if it is running. Blocks
+  until @racket[wait] would not block. If @racket[π] is already dead,
+  @racket[stop] has no effect.
+}
+
+@defproc[(kill [π process?]) void?]{
+  Immediately terminates the execution of @racket[π] if it is running. Blocks
+  until @racket[wait] would not block. If @racket[π] is already dead,
+  @racket[kill] has no effect.
+}
+
+@defproc[(wait [π process?]) void?]{
+  Blocks execution of the current process until @racket[π] is dead.
+}
+
+@defstruct*[exn:unhandled ([value any/c]) #:transparent]{
   Raised when attempting to @racket[wait] on a process killed by an unhandled
   exception.
 }
@@ -114,8 +119,6 @@ Processes are created explicitly by the @racket[start] function.
 @defthing[msg/c flat-contract?]{
   A flat contract that accepts any non-@racket[eof] value.
 }
-
-@subsection{Commands}
 
 @defproc[(give [π process?]
                [v msg/c (void)]) boolean?]{
@@ -149,8 +152,6 @@ Processes are created explicitly by the @racket[start] function.
   Returns the value, if any, provided on the @tech{output channel} of
   @racket[π], or @racket[#f] immediately if no value is available.
 }
-
-@subsection{Events}
 
 @defproc[(give-evt [π process?] [v msg/c (void)]) evt?]{
   Returns a fresh @racket-tech{synchronizable event} that becomes
@@ -236,6 +237,7 @@ Processes are created explicitly by the @racket[start] function.
 
 @defproc[(server [proc (-> msg/c msg/c)]
                  [#:on-stop on-stop (-> any) void]
+                 [#:on-dead on-dead (-> any) void]
                  [#:command handler procedure? void]
                  ) process?]{
   Returns a @deftech{server process}. Applies @racket[proc] to each value
@@ -244,6 +246,7 @@ Processes are created explicitly by the @racket[start] function.
 
 @defproc[(sink [proc (-> msg/c void?)]
                [#:on-stop on-stop (-> any) void]
+               [#:on-dead on-dead (-> any) void]
                [#:command handler prodecure? void]
                ) process?]{
   Returns a @deftech{sink process}. Applies @racket[proc] to each value taken
@@ -252,6 +255,7 @@ Processes are created explicitly by the @racket[start] function.
 
 @defproc[(source [proc (-> any/c)]
                  [#:on-stop on-stop (-> any) void]
+                 [#:on-dead on-dead (-> any) void]
                  [#:command handler procedure? void]
                  ) process?]{
   Returns a @deftech{source process}. Calls @racket[proc] with no arguments
@@ -261,6 +265,7 @@ Processes are created explicitly by the @racket[start] function.
 @defproc[(socket [snk process?]
                  [src process?]
                  [#:on-stop on-stop (-> any) void]
+                 [#:on-dead on-dead (-> any) void]
                  [#:command handler procedure? void]
                  ) process?]{
   Returns a @deftech{socket process}. Gives to @racket[snk] what it takes.
@@ -270,6 +275,7 @@ Processes are created explicitly by the @racket[start] function.
 
 @defproc[(pipe [π process?] ...
                [#:on-stop on-stop (-> any) void]
+               [#:on-dead on-dead (-> any) void]
                [#:command handler procedure? void]
                ) process?]{
   Returns a @deftech{pipe process}. Gives what it takes to the first
@@ -281,6 +287,7 @@ Processes are created explicitly by the @racket[start] function.
 @defproc[(bridge [π1 process?]
                  [π2 process?]
                  [#:on-stop on-stop (-> any) void]
+                 [#:on-dead on-dead (-> any) void]
                  [#:command handler procedure? void]
                  ) process?]{
   Returns a @deftech{bridge process}. Gives to @racket[π2] what it receives
@@ -292,6 +299,7 @@ Processes are created explicitly by the @racket[start] function.
                  [on-take (-> msg/c msg/c) values]
                  [on-emit (-> msg/c msg/c) values]
                  [#:on-stop on-stop (-> any) void]
+                 [#:on-dead on-dead (-> any) void]
                  [#:command handler procedure? void]
                  ) process?]{
   Returns a @deftech{filter process}. Applies @racket[on-take] to each value
@@ -303,6 +311,7 @@ Processes are created explicitly by the @racket[start] function.
 @defproc[(managed [π process?]
                   [#:on-eof on-eof (-> process? any) stop]
                   [#:on-stop on-stop (-> any) void]
+                  [#:on-dead on-dead (-> any) void]
                   [#:command handler procedure? void]
                   ) process?]{
   Returns a @deftech{managed process}. Gives what it takes to @racket[π].
