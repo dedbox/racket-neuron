@@ -155,30 +155,30 @@ Processes are created explicitly by the @racket[start] function.
 
 @defproc[(give-evt [π process?] [v msg/c (void)]) evt?]{
   Returns a fresh @racket-tech{synchronizable event} that becomes
-  @racket-tech{ready for synchronization} when @racket[(give π v)] would not
-  block. The @racket-tech{synchronization result} is the same as the
-  @racket[give] result.
+  @racket-tech{ready for synchronization} when @racket[give] would not block.
+  The @racket-tech{synchronization result} is the same as the @racket[give]
+  result.
 }
 
 @defproc[(take-evt) evt?]{
   Returns a constant @racket-tech{synchronizable event} that becomes
-  @racket-tech{ready for synchronization} when @racket[(take)] would not
-  block. The @racket-tech{synchronization result} is the same as the
-  @racket[take] result.
+  @racket-tech{ready for synchronization} when @racket[take] would not block.
+  The @racket-tech{synchronization result} is the same as the @racket[take]
+  result.
 }
 
 @defproc[(emit-evt [v msg/c (void)]) evt?]{
   Returns a fresh @racket-tech{synchronizable event} that becomes
-  @racket-tech{ready for synchronization} when @racket[(emit v)] would not
-  block. The @racket-tech{synchronization result} is the same as the
-  @racket[emit] result.
+  @racket-tech{ready for synchronization} when @racket[emit] would not block.
+  The @racket-tech{synchronization result} is the same as the @racket[emit]
+  result.
 }
 
 @defproc[(recv-evt [π process?]) evt?]{
   Returns a constant @racket-tech{synchronizable event} that becomes
-  @racket-tech{ready for synchronization} when @racket[(recv π)] would not
-  block. The @racket-tech{synchronization result} is the same as the
-  @racket[recv] result.
+  @racket-tech{ready for synchronization} when @racket[recv] would not block.
+  The @racket-tech{synchronization result} is the same as the @racket[recv]
+  result.
 }
 
 @section{Control Flow}
