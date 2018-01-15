@@ -110,6 +110,19 @@
     (check-false (alive? π)))
 
   (test-case
+    "A process is alive if it is not dead."
+    (define π (start deadlock))
+    (check-true (alive? π))
+    (check-false (dead? π)))
+
+  (test-case
+    "A process is dead if it is not alive."
+    (define π (start void))
+    (wait π)
+    (check-true (dead? π))
+    (check-false (alive? π)))
+
+  (test-case
     "A process can be stopped before it ends."
     (define π (start deadlock))
     (check-true (alive? π))
@@ -117,10 +130,22 @@
     (check-true (dead? π)))
 
   (test-case
+    "A process is dead after it is stopped."
+    (define π (start deadlock))
+    (stop π)
+    (check-true (dead? π))
+    (check-false (alive? π)))
+
+  (test-case
     "A process can be killed before it ends."
     (define π (start deadlock))
-    (check-true (alive? π))
     (kill π)
+    (check-true (dead? π)))
+
+  (test-case
+    "A process is dead after it is killed."
+    (define π (start deadlock))
+    (stop π)
     (check-true (dead? π)))
 
   ;; on-stop hook
