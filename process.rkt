@@ -99,19 +99,6 @@
   ;; starting and stopping
 
   (test-case
-    "A process is alive when it starts."
-    (define π (start deadlock))
-    (check-true (alive? π))
-    (check-false (dead? π)))
-
-  (test-case
-    "A process is dead after it ends."
-    (define π (start void))
-    (wait π)
-    (check-true (dead? π))
-    (check-false (alive? π)))
-
-  (test-case
     "A process is alive if it is not dead."
     (define π (start deadlock))
     (check-true (alive? π))
@@ -125,9 +112,19 @@
     (check-false (alive? π)))
 
   (test-case
+    "A process is alive when it starts."
+    (define π (start deadlock))
+    (check-true (alive? π)))
+
+  (test-case
+    "A process is dead after it ends."
+    (define π (start void))
+    (wait π)
+    (check-true (dead? π)))
+
+  (test-case
     "A process can be stopped before it ends."
     (define π (start deadlock))
-    (check-true (alive? π))
     (stop π)
     (check-true (dead? π)))
 
@@ -135,8 +132,7 @@
     "A process is dead after it is stopped."
     (define π (start deadlock))
     (stop π)
-    (check-true (dead? π))
-    (check-false (alive? π)))
+    (check-true (dead? π)))
 
   (test-case
     "A process can be killed before it ends."
@@ -157,39 +153,25 @@
   (test-case
     "A process calls its on-stop hook when it ends."
     (define stopped #f)
-    (define latch (make-semaphore 0))
-    (define π
-      (start (λ () (semaphore-wait latch)) #:on-stop (λ () (set! stopped #t))))
-    (check-false stopped)
-    (semaphore-post latch)
-    (wait π)
+    (wait (start void #:on-stop (λ () (set! stopped #t))))
     (check-true stopped))
 
   (test-case
     "A process calls its on-stop hook when it stops."
     (define stopped #f)
-    (define π (start deadlock #:on-stop (λ () (set! stopped #t))))
-    (check-false stopped)
-    (stop π)
+    (stop (start deadlock #:on-stop (λ () (set! stopped #t))))
     (check-true stopped))
 
   (test-case
     "A process does not call its on-stop hook when it dies."
     (define stopped #f)
-    (define latch (make-semaphore 0))
-    (define π
-      (start (λ () (semaphore-wait latch) (die)) #:on-stop (λ () (set! stopped #t))))
-    (check-false stopped)
-    (semaphore-post latch)
-    (wait π)
+    (wait (start die #:on-stop (λ () (set! stopped #t))))
     (check-false stopped))
 
   (test-case
     "A process does not call its on-stop hook when it is killed."
     (define stopped #f)
-    (define π (start deadlock #:on-stop (λ () (set! stopped #t))))
-    (check-false stopped)
-    (kill π)
+    (kill (start deadlock #:on-stop (λ () (set! stopped #t))))
     (check-false stopped))
 
   ;; on-dead hook
@@ -197,39 +179,25 @@
   (test-case
     "A process calls its on-dead hook when it ends."
     (define dead #f)
-    (define latch (make-semaphore 0))
-    (define π
-      (start (λ () (semaphore-wait latch)) #:on-dead (λ () (set! dead #t))))
-    (check-false dead)
-    (semaphore-post latch)
-    (wait π)
+    (wait (start void #:on-dead (λ () (set! dead #t))))
     (check-true dead))
 
   (test-case
     "A process calls its on-dead hook when it stops."
     (define dead #f)
-    (define π (start deadlock #:on-dead (λ () (set! dead #t))))
-    (check-false dead)
-    (stop π)
+    (stop (start deadlock #:on-dead (λ () (set! dead #t))))
     (check-true dead))
 
   (test-case
     "A process calls its on-dead hook when it dies."
     (define dead #f)
-    (define latch (make-semaphore 0))
-    (define π
-      (start (λ () (semaphore-wait latch)) #:on-dead (λ () (set! dead #t))))
-    (check-false dead)
-    (semaphore-post latch)
-    (wait π)
+    (wait (start die #:on-dead (λ () (set! dead #t))))
     (check-true dead))
 
   (test-case
     "A process calls its on-dead hook when it is killed."
     (define dead #f)
-    (define π (start deadlock #:on-dead (λ () (set! dead #t))))
-    (check-false dead)
-    (kill π)
+    (kill (start deadlock #:on-dead (λ () (set! dead #t))))
     (check-true dead))
 
   ;; command handler
@@ -237,9 +205,7 @@
   (test-case
     "A process invokes its command handler when applied as a procedure."
     (define handled #f)
-    (define π (start deadlock #:command (λ (v) (set! handled v))))
-    (check-false handled)
-    (π #t)
+    ((start deadlock #:command (λ (v) (set! handled v))) #t)
     (check-true handled))
 
   ;; synchronizable event
@@ -265,6 +231,5 @@
     (check-true (dead? π)))
 
   (test-case
-    "wait raises exn:unhandled on unhandled exceptions."
-    (define π (start (λ () (raise #t))))
-    (check-exn exn:unhandled? (λ () (wait π)))))
+    "wait raises unhandled on unhandled exceptions."
+    (check-exn unhandled? (λ () (wait (start (λ () (raise #t))))))))
