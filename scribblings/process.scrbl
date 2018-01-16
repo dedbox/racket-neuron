@@ -185,16 +185,16 @@ Processes are created explicitly by the @racket[start] function.
 @section{Control Flow}
 
 @defform[(forever body ...)]{
-  Repeatedly evaluates @racket[body]s forever.
+  Evaluates @racket[body]s repeatedly.
 }
 
 @defform[(while expr body ...)]{
-  Repeatedly evaluates @racket[body]s for as long as @racket[expr] evaluates
+  Evaluates @racket[body]s repeatedly for as long as @racket[expr] evaluates
   to @racket[#t].
 }
 
 @defform[(until expr body ...)]{
-  Repeatedly evaluates @racket[body]s for as long as @racket[expr] evalutes to
+  Evaluates @racket[body]s repeatedly for as long as @racket[expr] evalutes to
   @racket[#f].
 }
 
@@ -203,7 +203,7 @@ Processes are created explicitly by the @racket[start] function.
   @racket-tech{ready for synchronization} when all @racket[evt]s have become
   @racket-tech{ready for synchronization}. The @racket-tech{synchronization
   result} of @racket[all-evts] is a list of the @racket-tech{synchronization
-  results} of @racket[evt]s.
+  results} of @racket[evt]s in the order specified.
 }
 
 @defproc[(evt-sequence [make-evt (-> evt?)] ...+) evt?]{
