@@ -44,7 +44,7 @@
                #:on-stop [on-stop void]
                #:on-dead [on-dead void]
                #:command [handler void])
-  (define (unhandled e)
+  (define (do-unhandled e)
     (set-process-exn! (current-process) e)
     (die))
   (define ready-ch (make-channel))
@@ -57,7 +57,7 @@
           (parameterize ([current-process (channel-get ready-ch)])
             (with-handlers ([exn:break:hang-up? quit]
                             [exn:break:terminate? die]
-                            [(λ _ #t) unhandled])
+                            [(λ _ #t) do-unhandled])
               (parameterize-break #t
                 (thunk)))))
         (on-stop))
@@ -89,9 +89,9 @@
    (process-thread π)
    (λ _
      (when (process-exn π)
-       (raise (exn:unhandled (process-exn π)))))))
+       (raise (unhandled (process-exn π)))))))
 
-(struct exn:unhandled (value) #:transparent)
+(struct unhandled (value) #:transparent)
 
 (module+ test
   (require rackunit)
