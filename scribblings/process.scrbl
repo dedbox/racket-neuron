@@ -239,6 +239,19 @@ Processes are created explicitly by the @racket[start] function.
   @racket-tech{synchronization result} of the previous event.
 }
 
+@defproc[(filter [π process?]
+                 [#:on-take on-take (-> msg/c msg/c) values]
+                 [#:on-emit on-emit (-> msg/c msg/c) values]
+                 [#:on-stop on-stop (-> any) void]
+                 [#:on-dead on-dead (-> any) void]
+                 [#:command handler procedure? void]
+                 ) process?]{
+  Returns a @deftech{filter process}. Applies @racket[on-take] to each value
+  taken and gives the result to @racket[π]. Applies @racket[on-emit] to each
+  value emitted by @racket[π] and emits the result. Stops @racket[π] when it
+  stops. Dies when @racket[π] dies.
+}
+
 @defproc[(server [proc (-> msg/c msg/c)]
                  [#:on-stop on-stop (-> any) void]
                  [#:on-dead on-dead (-> any) void]
@@ -297,19 +310,6 @@ Processes are created explicitly by the @racket[start] function.
   Returns a @deftech{bridge process}. Gives to @racket[π2] what it receives
   from @racket[π1] and vice versa. Stops @racket[π1] and @racket[π2] when it
   stops. Dies when @racket[π1] or @racket[π2] die.
-}
-
-@defproc[(filter [π process?]
-                 [on-take (-> msg/c msg/c) values]
-                 [on-emit (-> msg/c msg/c) values]
-                 [#:on-stop on-stop (-> any) void]
-                 [#:on-dead on-dead (-> any) void]
-                 [#:command handler procedure? void]
-                 ) process?]{
-  Returns a @deftech{filter process}. Applies @racket[on-take] to each value
-  taken and gives the result to @racket[π]. Applies @racket[on-emit] to each
-  value emitted by @racket[π] and emits the result. Stops @racket[π] when it
-  stops. Dies when @racket[π] dies.
 }
 
 @defproc[(managed [π process?]
