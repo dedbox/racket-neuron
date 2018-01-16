@@ -2,6 +2,8 @@
 
 (require racket/contract/base)
 
+;;; Starting and Stopping Processes
+
 (provide
  (contract-out
   [current-process (-> process?)]
@@ -17,22 +19,20 @@
              process?)]
   [stop (-> process? void?)]
   [kill (-> process? void?)]
-  [wait (-> process? void?)]
-  )
- (struct-out exn:unhandled))
-
-;;; Starting and Stopping Processes
+  [wait (-> process? void?)])
+ (struct-out unhandled))
 
 (define current-process (make-parameter #f))
 (define quit (λ _ ((process-stop-cont (current-process)))))
 (define die (λ _ ((process-die-cont (current-process)))))
 (define deadlock (λ _ (sync never-evt)))
 
-(struct process (thread die-cont stop-cont handler [exn #:auto #:mutable])
-        #:auto-value #f
-        #:property prop:evt (λ (π) (handle-evt (wait-evt π) (λ _ π)))
-        #:property prop:procedure (λ (π . args)
-                                    (apply (process-handler π) args)))
+(struct process
+  (thread die-cont stop-cont handler input-ch output-ch [exn #:auto #:mutable])
+  #:auto-value #f
+  #:property prop:evt (λ (π) (handle-evt (wait-evt π) (λ _ π)))
+  #:property prop:procedure (λ (π . args)
+                              (apply (process-handler π) args)))
 
 (define (dead? π)
   (thread-dead? (process-thread π)))
@@ -65,7 +65,9 @@
   (define π (process (thread ready-process)
                      (channel-get ready-ch)
                      (channel-get ready-ch)
-                     handler))
+                     handler
+                     (make-channel)
+                     (make-channel)))
   (channel-put ready-ch π)
   π)
 
