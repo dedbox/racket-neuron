@@ -198,11 +198,11 @@ Processes are created explicitly by the @racket[start] function.
   @racket[#f].
 }
 
-@defproc[(all-evts [evt evt?] ...) evt?]{
+@defproc[(evt-set [evt evt?] ...) evt?]{
   Returns a fresh @racket-tech{synchronizable event} that becomes
   @racket-tech{ready for synchronization} when all @racket[evt]s have become
   @racket-tech{ready for synchronization}. The @racket-tech{synchronization
-  result} of @racket[all-evts] is a list of the @racket-tech{synchronization
+  result} of @racket[evt-set] is a list of the @racket-tech{synchronization
   results} of @racket[evt]s in the order specified.
 }
 
