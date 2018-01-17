@@ -87,7 +87,7 @@ Processes are created explicitly by the @racket[start] function.
 @defproc[(start [thunk (-> any)]
                 [#:on-stop on-stop (-> any) void]
                 [#:on-dead on-dead (-> any) void]
-                [#:command handler procedure? void]
+                [#:command handler (or/c procedure? (listof procedure?)) null]
                 ) process?]{
   Calls @racket[thunk] with no arguments in a new process. Installs
   @racket[on-stop] as its @tech{on-stop hook}, @racket[on-dead] as its
@@ -249,7 +249,7 @@ Processes are created explicitly by the @racket[start] function.
 @defproc[(server [proc (-> msg/c msg/c)]
                  [#:on-stop on-stop (-> any) void]
                  [#:on-dead on-dead (-> any) void]
-                 [#:command handler procedure? void]
+                 [#:command handler (or/c procedure? (listof procedure?)) null]
                  ) process?]{
   Returns a @deftech{server process}. Applies @racket[proc] to each value
   taken and emits the result.
@@ -258,7 +258,7 @@ Processes are created explicitly by the @racket[start] function.
 @defproc[(sink [proc (-> msg/c void?)]
                [#:on-stop on-stop (-> any) void]
                [#:on-dead on-dead (-> any) void]
-               [#:command handler prodecure? void]
+               [#:command handler (or/c procedure? (listof procedure?)) null]
                ) process?]{
   Returns a @deftech{sink process}. Applies @racket[proc] to each value taken
   and ignores the result.
@@ -267,7 +267,7 @@ Processes are created explicitly by the @racket[start] function.
 @defproc[(source [proc (-> any/c)]
                  [#:on-stop on-stop (-> any) void]
                  [#:on-dead on-dead (-> any) void]
-                 [#:command handler procedure? void]
+                 [#:command handler (or/c procedure? (listof procedure?)) null]
                  ) process?]{
   Returns a @deftech{source process}. Calls @racket[proc] with no arguments
   repeatedly and emits each result.
@@ -277,7 +277,7 @@ Processes are created explicitly by the @racket[start] function.
                  [src process?]
                  [#:on-stop on-stop (-> any) void]
                  [#:on-dead on-dead (-> any) void]
-                 [#:command handler procedure? void]
+                 [#:command handler (or/c procedure? (listof procedure?)) null]
                  ) process?]{
   Returns a @deftech{socket process}. Gives to @racket[snk] what it takes.
   Emits what it receives from @racket[src]. Stops @racket[snk] and
@@ -289,7 +289,7 @@ Processes are created explicitly by the @racket[start] function.
                 [#:on-emit on-emit (-> msg/c msg/c) values]
                 [#:on-stop on-stop (-> any) void]
                 [#:on-dead on-dead (-> any) void]
-                [#:command handler procedure? void]
+                [#:command handler (or/c procedure? (listof procedure?)) null]
                 ) process?]{
   Returns a @deftech{proxy process}. Applies @racket[on-take] to each value
   taken and gives the result to @racket[π]. Applies @racket[on-emit] to each
@@ -300,7 +300,7 @@ Processes are created explicitly by the @racket[start] function.
 @defproc[(pipe [π process?] ...
                [#:on-stop on-stop (-> any) void]
                [#:on-dead on-dead (-> any) void]
-               [#:command handler procedure? void]
+               [#:command handler (or/c procedure? (listof procedure?)) null]
                ) process?]{
   Returns a @deftech{pipe process}. Gives what it takes to the first
   @racket[π]. Iteratively gives to the next @racket[π] what it receives from
@@ -312,7 +312,7 @@ Processes are created explicitly by the @racket[start] function.
                  [π2 process?]
                  [#:on-stop on-stop (-> any) void]
                  [#:on-dead on-dead (-> any) void]
-                 [#:command handler procedure? void]
+                 [#:command handler (or/c procedure? (listof procedure?)) null]
                  ) process?]{
   Returns a @deftech{bridge process}. Gives to @racket[π2] what it receives
   from @racket[π1] and vice versa. Stops @racket[π1] and @racket[π2] when it
@@ -323,7 +323,7 @@ Processes are created explicitly by the @racket[start] function.
                   [#:on-eof on-eof (-> process? any) stop]
                   [#:on-stop on-stop (-> any) void]
                   [#:on-dead on-dead (-> any) void]
-                  [#:command handler procedure? void]
+                  [#:command handler (or/c procedure? (listof procedure?)) null]
                   ) process?]{
   Returns a @deftech{managed process}. Gives what it takes to @racket[π].
   Emits what it receives from @racket[π]. Applies @racket[on-eof] to

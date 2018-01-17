@@ -1,6 +1,10 @@
 #lang racket/base
 
-(require racket/contract/base)
+(require racket/contract/base
+         racket/dict
+         racket/function
+         racket/list
+         racket/match)
 
 ;;; Starting and Stopping Processes
 
@@ -15,12 +19,14 @@
   [alive? (-> process? boolean?)]
   [start (-> (-> any)
              #:on-stop (-> any)
-             #:command procedure?
+             #:on-dead (-> any)
+             #:command (or/c procedure? (listof procedure?))
              process?)]
   [stop (-> process? void?)]
   [kill (-> process? void?)]
-  [wait (-> process? void?)])
- (struct-out unhandled))
+  [wait (-> process? void?)]
+  [struct unhandled-exception ([value any/c])]
+  [struct unhandled-command ([args (listof any/c)])]))
 
 (define current-process (make-parameter #f))
 (define quit (λ _ ((process-stop-cont (current-process)))))
@@ -31,8 +37,14 @@
   (thread die-cont stop-cont handler input-ch output-ch [exn #:auto #:mutable])
   #:auto-value #f
   #:property prop:evt (λ (π) (handle-evt (wait-evt π) (λ _ π)))
-  #:property prop:procedure (λ (π . args)
-                              (apply (process-handler π) args)))
+  #:property prop:procedure (λ args (apply command args)))
+
+(define (command π . vs)
+  (let loop ([procs (process-handler π)])
+    (if (null? procs)
+        (raise (unhandled-command vs))
+        (with-handlers ([unhandled-command? (λ _ (loop (cdr procs)))])
+          (apply (car procs) vs)))))
 
 (define (dead? π)
   (thread-dead? (process-thread π)))
@@ -43,7 +55,7 @@
 (define (start thunk
                #:on-stop [on-stop void]
                #:on-dead [on-dead void]
-               #:command [handler void])
+               #:command [handler null])
   (define (do-unhandled e)
     (set-process-exn! (current-process) e)
     (die))
@@ -65,7 +77,7 @@
   (define π (process (thread ready-process)
                      (channel-get ready-ch)
                      (channel-get ready-ch)
-                     handler
+                     (flatten handler)
                      (make-channel)
                      (make-channel)))
   (channel-put ready-ch π)
@@ -89,9 +101,10 @@
    (process-thread π)
    (λ _
      (when (process-exn π)
-       (raise (unhandled (process-exn π)))))))
+       (raise (unhandled-exception (process-exn π)))))))
 
-(struct unhandled (value) #:transparent)
+(struct unhandled-exception (value) #:transparent)
+(struct unhandled-command (args) #:transparent)
 
 (module+ test
   (require rackunit)
@@ -231,8 +244,8 @@
     (check-true (dead? π)))
 
   (test-case
-    "wait raises unhandled on unhandled exceptions."
-    (check-exn unhandled? (λ () (wait (start (λ () (raise #t))))))))
+    "wait raises unhandled-exception on unhandled exceptions."
+    (check-exn unhandled-exception? (λ () (wait (start (λ () (raise #t))))))))
 
 ;;; Inter-Process Communication
 
