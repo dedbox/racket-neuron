@@ -289,7 +289,7 @@ Processes are created explicitly by the @racket[start] function.
                 [#:on-emit on-emit (-> msg/c msg/c) values]
                 [#:on-stop on-stop (-> any) void]
                 [#:on-dead on-dead (-> any) void]
-                [#:command handler (or/c procedure? (listof procedure?)) null]
+                [#:command handler (or/c procedure? (listof procedure?)) π]
                 ) process?]{
   Returns a @deftech{proxy process}. Applies @racket[on-take] to each value
   taken and gives the result to @racket[π]. Applies @racket[on-emit] to each
