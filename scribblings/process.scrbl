@@ -35,7 +35,9 @@ killed by an unhandled exception raises @racket[unhandled-exception].
 ]
 
 A process can be applied as a procedure, which invokes its @deftech{command
-handler}. The @tech{command handler} can be any procedure.
+handler}. The @tech{command handler} can be any procedure. The default
+@tech{command handler} immediately and unconditionally raises
+@racket[unhandled-command].
 
 Example:
 @; @examples[
@@ -112,6 +114,11 @@ Processes are created explicitly by the @racket[start] function.
 @defstruct*[unhandled-exception ([value any/c]) #:transparent]{
   Raised when attempting to @racket[wait] on a process killed by an unhandled
   exception.
+}
+
+@defstruct*[unhandled-command ([args (listof any/c)]) #:transparent]{
+  Raised when a @tech{command handler} cannot determine how to handle
+  @racket[args].
 }
 
 @section{Inter-Process Communication}
