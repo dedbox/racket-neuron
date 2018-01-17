@@ -26,7 +26,7 @@ Processes extend the Racket @racket-tech{thread} model with four features:
 ]
 
 Unhandled exceptions are fatal. Attempting to @racket[wait] on a process
-killed by an unhandled exception raises @racket[unhandled].
+killed by an unhandled exception raises @racket[unhandled-exception].
 
 @; @examples[
 @racketblock[
@@ -109,7 +109,7 @@ Processes are created explicitly by the @racket[start] function.
   Blocks execution of the current process until @racket[π] is dead.
 }
 
-@defstruct*[unhandled ([value any/c]) #:transparent]{
+@defstruct*[unhandled-exception ([value any/c]) #:transparent]{
   Raised when attempting to @racket[wait] on a process killed by an unhandled
   exception.
 }
