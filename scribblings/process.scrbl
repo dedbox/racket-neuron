@@ -123,28 +123,24 @@ Processes are created explicitly by the @racket[start] function.
 
 @section{Inter-Process Communication}
 
-@defthing[msg/c flat-contract?]{
-  A flat contract that accepts any non-@racket[eof] value.
-}
-
 @defproc[(give [π process?]
-               [v msg/c (void)]) boolean?]{
+               [v any/c (void)]) boolean?]{
   Blocks until @racket[π] is ready to accept the value @racket[v] on its
   @tech{input channel}, or until @racket[π] is dead. Returns @racket[#t] if
   @racket[π] accepted @racket[v], @racket[#f] otherwise.
 }
 
-@defproc[(take) msg/c]{
+@defproc[(take) any/c]{
   Blocks until a sender is ready to provide a value on the @tech{input
   channel} of the current process. Returns the provided value.
 }
 
-@defproc[(try-take) msg/c]{
+@defproc[(try-take) any/c]{
   Returns the value, if any, provided on the @tech{input channel} of the
   current process, or @racket[#f] if no value is available.
 }
 
-@defproc[(emit [v msg/c (void)]) void?]{
+@defproc[(emit [v any/c (void)]) void?]{
   Blocks until a receiver is ready to accept the value @racket[v] through the
   @tech{output channel} of the current process.
 }
@@ -160,7 +156,7 @@ Processes are created explicitly by the @racket[start] function.
   @racket[π], or @racket[#f] if no value is available.
 }
 
-@defproc[(give-evt [π process?] [v msg/c (void)]) evt?]{
+@defproc[(give-evt [π process?] [v any/c (void)]) evt?]{
   Returns a fresh @racket-tech{synchronizable event} that becomes
   @racket-tech{ready for synchronization} when @racket[π] is ready to accept
   the value @racket[v] on its @tech{input channel}, or until @racket[π] is
@@ -175,7 +171,7 @@ Processes are created explicitly by the @racket[start] function.
   @racket-tech{synchronization result} is the provided value.
 }
 
-@defproc[(emit-evt [v msg/c (void)]) evt?]{
+@defproc[(emit-evt [v any/c (void)]) evt?]{
   Returns a fresh @racket-tech{synchronizable event} that becomes
   @racket-tech{ready for synchronization} when a receiver is ready to accept
   the value @racket[v] through the @tech{output channel} of the current
@@ -246,7 +242,7 @@ Processes are created explicitly by the @racket[start] function.
   @racket-tech{synchronization result} of the previous event.
 }
 
-@defproc[(server [proc (-> msg/c msg/c)]
+@defproc[(server [proc (-> any/c any/c)]
                  [#:on-stop on-stop (-> any) void]
                  [#:on-dead on-dead (-> any) void]
                  [#:command handler (or/c procedure? (listof procedure?)) null]
@@ -255,7 +251,7 @@ Processes are created explicitly by the @racket[start] function.
   taken and emits the result.
 }
 
-@defproc[(sink [proc (-> msg/c void?)]
+@defproc[(sink [proc (-> any/c void?)]
                [#:on-stop on-stop (-> any) void]
                [#:on-dead on-dead (-> any) void]
                [#:command handler (or/c procedure? (listof procedure?)) null]
@@ -291,8 +287,8 @@ Processes are created explicitly by the @racket[start] function.
 }
 
 @defproc[(proxy [π process?]
-                [#:on-take on-take (-> msg/c msg/c) values]
-                [#:on-emit on-emit (-> msg/c msg/c) values]
+                [#:on-take on-take (-> any/c any/c) values]
+                [#:on-emit on-emit (-> any/c any/c) values]
                 [#:on-stop on-stop (-> any) void]
                 [#:on-dead on-dead (-> any) void]
                 [#:command handler (or/c procedure? (listof procedure?)) π]

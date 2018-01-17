@@ -251,19 +251,16 @@
 
 (provide
  (contract-out
-  [msg/c flat-contract?]
-  [give (->* (process?) (msg/c) boolean?)]
+  [give (->* (process?) (any/c) boolean?)]
   [take (-> any/c)]
   [try-take (-> any/c)]
-  [emit (->* () (msg/c) void?)]
+  [emit (->* () (any/c) void?)]
   [recv (-> process? any/c)]
   [try-recv (-> process? any/c)]
-  [give-evt (->* (process?) (msg/c) evt?)]
+  [give-evt (->* (process?) (any/c) evt?)]
   [take-evt (-> evt?)]
-  [emit-evt (->* () (msg/c) evt?)]
+  [emit-evt (->* () (any/c) evt?)]
   [recv-evt (-> process? evt?)]))
-
-(define msg/c (not/c eof-object?))
 
 ;; Commands
 
@@ -305,16 +302,6 @@
 
 (module+ test
   (require rackunit)
-
-  (test-case
-    "msg/c accepts any non-eof value."
-    (check-true (msg/c 0))
-    (check-true (msg/c 'x))
-    (check-true (msg/c (start deadlock))))
-
-  (test-case
-    "msg/c rejects eof."
-    (check-false (msg/c eof)))
 
   ;; Events
 
