@@ -282,6 +282,12 @@ Processes are created explicitly by the @racket[start] function.
   Returns a @deftech{socket process}. Gives to @racket[snk] what it takes.
   Emits what it receives from @racket[src]. Stops @racket[snk] and
   @racket[src] when it stops. Dies when @racket[snk] or @racket[src] die.
+
+  Commands:
+  @itemlist[
+    @item{@racket['sink] -- get @racket[snk]}
+    @item{@racket['source] -- get @racket[src]}
+  ]
 }
 
 @defproc[(proxy [π process?]
