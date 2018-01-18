@@ -308,76 +308,6 @@
 (module+ test
   (require rackunit)
 
-
-  (test-case
-    "call gives v to π and then recvs from π."
-    (define π (start (λ () (emit (add1 (take))))))
-    (check = (call π 47) 48))
-
-  ;; Events
-
-  (test-case
-    "A give-evt is ready when π accepts v."
-    (define π (start (λ () (emit) (take))))
-    (define evt (give-evt π))
-    (check-false (sync/timeout 0 evt))
-    (recv π)
-    (check-false (not (sync evt))))
-
-  (test-case
-    "A give-evt syncs to #t if π accepts v."
-    (check-true (sync (give-evt (start (λ () (take)))))))
-
-  (test-case
-    "A give-evt syncs to #f if π dies before accepting v."
-    (define π (start deadlock))
-    (define evt (give-evt π))
-    (kill π)
-    (check-false (sync evt)))
-
-  (test-case
-    "A take-evt is ready when a process provides a value."
-    (define π (start (λ () (check-false (not (sync (take-evt)))))))
-    (give π)
-    (wait π))
-
-  (test-case
-    "A take-evt syncs to the provided value."
-    (define π (start (λ () (check eq? (sync (take-evt)) 3))))
-    (give π 3)
-    (wait π))
-
-  (test-case
-    "An emit-evt is ready when a process accepts v."
-    (define π (start (λ () (check-false (not (sync (emit-evt)))))))
-    (recv π)
-    (wait π))
-
-  (test-case
-    "An emit-evt syncs to void."
-    (define π (start (λ () (check-pred void? (sync (emit-evt))))))
-    (recv π)
-    (wait π))
-
-  (test-case
-    "A recv-evt is ready when a value is accepted from π."
-    (define π (start (λ () (take) (emit))))
-    (define evt (recv-evt π))
-    (check-false (sync/timeout 0 evt))
-    (give π)
-    (check-false (not (sync evt))))
-
-  (test-case
-    "A recv-evt syncs to the value accepted from π."
-    (check = (sync (recv-evt (start (λ () (emit 5))))) 5))
-
-  (test-case
-    "A recv-evt syncs to eof if π dies."
-    (define π (start deadlock))
-    (define evt (recv-evt π))
-    (kill π)
-    (check-pred eof-object? (sync evt)))
-
   ;; Commands
 
   (test-case
@@ -457,4 +387,107 @@
 
   (test-case
     "try-recv returns #f if no value is accepted."
-    (check-false (try-recv (start deadlock) ))))
+    (check-false (try-recv (start deadlock))))
+
+  (test-case
+    "call gives v to π and then recvs from π."
+    (define π (start (λ () (emit (add1 (take))))))
+    (check = (call π 47) 48))
+
+  ;; Events
+
+  (test-case
+    "A give-evt is ready when π accepts v."
+    (define π (start (λ () (emit) (take))))
+    (define evt (give-evt π))
+    (check-false (sync/timeout 0 evt))
+    (recv π)
+    (check-false (not (sync evt))))
+
+  (test-case
+    "A give-evt syncs to #t if π accepts v."
+    (check-true (sync (give-evt (start (λ () (take)))))))
+
+  (test-case
+    "A give-evt syncs to #f if π dies before accepting v."
+    (define π (start deadlock))
+    (define evt (give-evt π))
+    (kill π)
+    (check-false (sync evt)))
+
+  (test-case
+    "A take-evt is ready when a process provides a value."
+    (define π (start (λ () (check-false (not (sync (take-evt)))))))
+    (give π)
+    (wait π))
+
+  (test-case
+    "A take-evt syncs to the provided value."
+    (define π (start (λ () (check eq? (sync (take-evt)) 3))))
+    (give π 3)
+    (wait π))
+
+  (test-case
+    "An emit-evt is ready when a process accepts v."
+    (define π (start (λ () (check-false (not (sync (emit-evt)))))))
+    (recv π)
+    (wait π))
+
+  (test-case
+    "An emit-evt syncs to void."
+    (define π (start (λ () (check-pred void? (sync (emit-evt))))))
+    (recv π)
+    (wait π))
+
+  (test-case
+    "A recv-evt is ready when a value is accepted from π."
+    (define π (start (λ () (take) (emit))))
+    (define evt (recv-evt π))
+    (check-false (sync/timeout 0 evt))
+    (give π)
+    (check-false (not (sync evt))))
+
+  (test-case
+    "A recv-evt syncs to the value accepted from π."
+    (check = (sync (recv-evt (start (λ () (emit 5))))) 5))
+
+  (test-case
+    "A recv-evt syncs to eof if π dies."
+    (define π (start deadlock))
+    (define evt (recv-evt π))
+    (kill π)
+    (check-pred eof-object? (sync evt)))
+
+  ;; Commands
+
+  (test-case
+
+  (test-case
+
+  (test-case
+
+  (test-case
+
+  (test-case
+
+  (test-case
+
+  (test-case
+
+  (test-case
+
+  (test-case
+
+  (test-case
+
+  (test-case
+
+  (test-case
+
+  (test-case
+
+  (test-case
+
+  (test-case
+
+  (test-case
