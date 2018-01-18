@@ -257,6 +257,7 @@
   [emit (->* () (any/c) void?)]
   [recv (-> process? any/c)]
   [try-recv (-> process? any/c)]
+  [call (-> process? any/c any/c)]
   [give-evt (->* (process?) (any/c) evt?)]
   [take-evt (-> evt?)]
   [emit-evt (->* () (any/c) evt?)]
@@ -282,6 +283,10 @@
 (define (try-recv π)
   (channel-try-get (process-output-ch π)))
 
+(define (call π [v (void)])
+  (give π v)
+  (recv π))
+
 ;; Events
 
 (define (give-evt π [v (void)])
@@ -302,6 +307,12 @@
 
 (module+ test
   (require rackunit)
+
+
+  (test-case
+    "call gives v to π and then recvs from π."
+    (define π (start (λ () (emit (add1 (take))))))
+    (check = (call π 47) 48))
 
   ;; Events
 

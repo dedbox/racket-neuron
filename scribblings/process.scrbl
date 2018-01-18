@@ -156,6 +156,11 @@ Processes are created explicitly by the @racket[start] function.
   @racket[π], or @racket[#f] if no value is available.
 }
 
+@defproc[(call [π process?] [v any/c (void)]) any/c]{
+  Gives @racket[v] to @racket[π] and then immediately @racket[recv]s from
+  @racket[π]. Returns the received value.
+}
+
 @defproc[(give-evt [π process?] [v any/c (void)]) evt?]{
   Returns a fresh @racket-tech{synchronizable event} that becomes
   @racket-tech{ready for synchronization} when @racket[π] is ready to accept
