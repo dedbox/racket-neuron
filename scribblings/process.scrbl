@@ -288,14 +288,14 @@ Processes are created explicitly by the @racket[start] function.
                  [#:on-dead on-dead (-> any) void]
                  [#:command handler (or/c procedure? (listof procedure?)) null]
                  ) process?]{
-  Returns a @deftech{socket process}. Gives to @racket[snk] what it takes.
-  Emits what it receives from @racket[src]. Stops @racket[snk] and
-  @racket[src] when it stops. Dies when @racket[snk] or @racket[src] die.
+  Returns a @deftech{socket process}. Forwards to @racket[snk] and from
+  @racket[src]. Stops @racket[snk] and @racket[src] when it stops. Dies when
+  @racket[snk] or @racket[src] die.
 
   Commands:
   @itemlist[
-    @item{@racket['sink] -- get @racket[snk]}
-    @item{@racket['source] -- get @racket[src]}
+    @item{@racket['sink] -- returns @racket[snk]}
+    @item{@racket['source] -- returns @racket[src]}
   ]
 }
 
@@ -306,10 +306,9 @@ Processes are created explicitly by the @racket[start] function.
                 [#:on-dead on-dead (-> any) void]
                 [#:command handler (or/c procedure? (listof procedure?)) π]
                 ) process?]{
-  Returns a @deftech{proxy process}. Applies @racket[on-take] to each value
-  taken and gives the result to @racket[π]. Applies @racket[on-emit] to each
-  value received from @racket[π] and emits the result. Stops @racket[π] when
-  it stops. Dies when @racket[π] dies.
+  Returns a @deftech{proxy process}. Forwards values to and from @racket[π].
+  Calls @racket[on-take] and @racket[on-emit] appropriately. Stops @racket[π]
+  when it stops. Dies when @racket[π] dies.
 }
 
 @defproc[(pipe [π process?] ...
@@ -317,10 +316,9 @@ Processes are created explicitly by the @racket[start] function.
                [#:on-dead on-dead (-> any) void]
                [#:command handler (or/c procedure? (listof procedure?)) null]
                ) process?]{
-  Returns a @deftech{pipe process}. Gives what it takes to the first
-  @racket[π]. Iteratively gives to the next @racket[π] what it receives from
-  the previous. Emits what it receives from the last @racket[π]. Stops
-  all @racket[π]s when it stops. Dies when any @racket[π] dies.
+  Returns a @deftech{pipe process}. Calls @racket[π]s in series, implicitly
+  starting with @racket[take] and ending with @racket[emit]. Stops all
+  @racket[π]s when it stops. Dies when any @racket[π] dies.
 }
 
 @defproc[(bridge [π1 process?]
@@ -329,30 +327,29 @@ Processes are created explicitly by the @racket[start] function.
                  [#:on-dead on-dead (-> any) void]
                  [#:command handler (or/c procedure? (listof procedure?)) null]
                  ) process?]{
-  Returns a @deftech{bridge process}. Gives to @racket[π2] what it receives
-  from @racket[π1] and vice versa. Stops @racket[π1] and @racket[π2] when it
+  Returns a @deftech{bridge process}. Forwards from @racket[π1] to
+  @racket[π2], and vice versa. Stops @racket[π1] and @racket[π2] when it
   stops. Dies when @racket[π1] or @racket[π2] die.
 }
 
 @defproc[(managed [π process?]
-                  [#:on-eof on-eof (-> process? any) stop]
+                  [#:on-take-eof on-take-eof (-> any) quit]
+                  [#:on-emit-eof on-emit-eof (-> any) quit]
                   [#:on-stop on-stop (-> any) void]
                   [#:on-dead on-dead (-> any) void]
                   [#:command handler (or/c procedure? (listof procedure?)) null]
                   ) process?]{
-  Returns a @deftech{managed process}. Gives what it takes to @racket[π].
-  Emits what it receives from @racket[π]. Applies @racket[on-eof] to
-  @racket[π] when it takes or emits @racket[eof]. Stops @racket[π] when it
-  stops. Dies when @racket[π] dies.
+  Returns a @deftech{managed process}, a specialized @tech{proxy process}.
+  Forwards non-@racket[eof] values to and from @racket[π]. Calls
+  @racket[on-take-eof] or @racket[on-emit-eof] appropriately when @racket[eof]
+  is encountered. Stops @racket[π] when it stops. Dies when @racket[π] dies.
 }
 
 @defproc[(shutdown [π process?]) void?]{
-  Gives @racket[eof] to @racket[π]. Blocks until @racket[π] is dead.
+  Gives @racket[eof] to @racket[π] and blocks until it dies.
 }
 
 @defproc[(shutdown-evt [π process?]) evt?]{
-  Returns a @racket-tech{synchronizable event} that becomes @racket-tech{ready
-  for synchronization} when @racket[(shutdown π)] would not block. The
-  @racket-tech{synchronization result} is the same as the @racket[shutdown]
-  result.
+  Gives @racket[eof] to @racket[π] and returns a @racket-tech{synchronizable
+  event} that becomes @racket-tech{ready for synchronization} when π dies.
 }
