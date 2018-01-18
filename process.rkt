@@ -17,11 +17,11 @@
   [process? predicate/c]
   [dead? (-> process? boolean?)]
   [alive? (-> process? boolean?)]
-  [start (-> (-> any)
-             #:on-stop (-> any)
-             #:on-dead (-> any)
-             #:command (or/c procedure? (listof procedure?))
-             process?)]
+  [start (->* ((-> any))
+              (#:on-stop (-> any)
+               #:on-dead (-> any)
+               #:command (or/c procedure? (listof procedure?)))
+              process?)]
   [stop (-> process? void?)]
   [kill (-> process? void?)]
   [wait (-> process? void?)]
