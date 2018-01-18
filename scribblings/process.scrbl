@@ -9,6 +9,12 @@
 @(define (racket-tech . args)
    (apply tech #:doc '(lib "scribblings/reference/reference.scrbl") args))
 
+@(define neuron-evaluator
+   (parameterize ([sandbox-output 'string]
+                  [sandbox-error-output 'string]
+                  [sandbox-memory-limit 50])
+     (make-evaluator 'racket/base '(require neuron))))
+
 @; Dendrites are synaptic sites. Several of a neuron's dendrites may fire
 @; simultaneously.
 
@@ -28,10 +34,9 @@ Processes extend the Racket @racket-tech{thread} model with four features:
 Unhandled exceptions are fatal. Attempting to @racket[wait] on a process
 killed by an unhandled exception raises @racket[unhandled-exception].
 
-@; @examples[
-@racketblock[
+@examples[#:eval neuron-evaluator
   (define π (start (λ () (raise 'VAL))))
-  (wait π)
+  (eval:error (wait π))
 ]
 
 A process can be applied as a procedure, which invokes its @deftech{command
@@ -39,12 +44,15 @@ handler}. The @tech{command handler} can be any procedure. The default
 @tech{command handler} immediately and unconditionally raises
 @racket[unhandled-command].
 
-Example:
-@; @examples[
-@racketblock[
-  (define π (start deadlock #:command (hash 'prop1 1 'method2 (λ _ 2))))
+@examples[#:eval neuron-evaluator
+  (define H (hash 'prop1 1 'method2 (λ _ 2)))
+  (define π (start deadlock
+                   #:command (λ vs
+                               (or (hash-ref H (car vs) #f)
+                                   (raise (unhandled-command vs))))))
   (π 'prop1)
   ((π 'method2) 5)
+  (eval:error (π 'x 'y))
 ]
 
 A process can be used as a @racket-tech{synchronizable event}. A process is
