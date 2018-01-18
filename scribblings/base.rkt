@@ -1,21 +1,19 @@
 #lang at-exp racket/base
 
-(require pict
-         scribble/manual)
-(provide (all-from-out pict)
-         (all-from-out scribble/manual))
+(require neuron/private/require
+         racket/function)
 
-(require (for-label racket/base
-                    racket/contract))
-(provide (for-label (all-from-out racket/base)
-                    (all-from-out racket/contract)))
+(require-and-provide
+ neuron
+ pict
+ racket/sandbox
+ scribble/examples
+ scribble/manual)
 
-(require (for-label neuron))
-(provide (for-label (all-from-out neuron)))
-
-(provide layer)
-
-(require racket/function)
+(require-for-label-and-provide
+ neuron
+ racket/base
+ racket/contract)
 
 (define (layer w h str
                #:t [t (hline (- w 1) 1)]
@@ -28,3 +26,5 @@
   (define B (curry cb-superimpose b))
   (define L (curry lc-superimpose l))
   (T (R (B (L content)))))
+
+(provide layer)

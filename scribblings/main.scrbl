@@ -2,8 +2,6 @@
 
 @(require "base.rkt")
 
-@(require (for-label neuron))
-
 @title{Neuron: Decentralized Software Organisms}
 @author{@author+email["Eric Griffis" "dedbox@gmail.com"]}
 
