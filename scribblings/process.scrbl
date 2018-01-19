@@ -332,8 +332,8 @@ Processes are created explicitly by the @racket[start] function.
 }
 
 @defproc[(managed [π process?]
-                  [#:on-take-eof on-take-eof (-> any) quit]
-                  [#:on-emit-eof on-emit-eof (-> any) quit]
+                  [#:on-take-eof on-take-eof (-> process? any) stop]
+                  [#:on-emit-eof on-emit-eof (-> process? any) stop]
                   [#:on-stop on-stop (-> any) void]
                   [#:on-dead on-dead (-> any) void]
                   [#:command handler (or/c procedure? (listof procedure?)) null]
