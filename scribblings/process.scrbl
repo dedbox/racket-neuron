@@ -19,7 +19,7 @@
 @; simultaneously.
 
 A @deftech{process} is a @racket-tech{thread}-like concurrency primitive.
-Processes extend the Racket @racket-tech{thread} model with four features:
+Processes extend the Racket @racket-tech{thread} model with four new features:
 
 @itemlist[
   @item{A pair of unbuffered @racket-tech{channels} built in: an
@@ -46,10 +46,9 @@ handler}. The @tech{command handler} can be any procedure. The default
 
 @examples[#:eval neuron-evaluator
   (define H (hash 'prop1 1 'method2 (λ _ 2)))
-  (define π (start deadlock
-                   #:command (λ vs
-                               (or (hash-ref H (car vs) #f)
-                                   (raise (unhandled-command vs))))))
+  (define π (start deadlock #:command (λ vs
+                                        (or (hash-ref H (car vs) #f)
+                                            (raise (unhandled-command vs))))))
   (π 'prop1)
   ((π 'method2) 5)
   (eval:error (π 'x 'y))
