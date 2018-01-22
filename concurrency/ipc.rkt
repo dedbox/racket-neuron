@@ -1,6 +1,6 @@
 #lang racket/base
 
-(require neuron/process/start
+(require neuron/concurrency/process
          racket/contract/base)
 
 (provide

@@ -1,7 +1,7 @@
 #lang racket/base
 
-(require neuron/process/start
-         neuron/process/ipc
+(require neuron/concurrency/process
+         neuron/concurrency/ipc
          racket/contract/base
          racket/dict
          racket/function

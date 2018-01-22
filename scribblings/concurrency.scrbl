@@ -2,9 +2,9 @@
 
 @(require "base.rkt")
 
-@title{Process}
+@title{Concurrency}
 
-@(defmodule neuron/process #:packages ("neuron"))
+@(defmodule neuron/concurrency #:packages ("neuron"))
 
 @(define (racket-tech . args)
    (apply tech #:doc '(lib "scribblings/reference/reference.scrbl") args))
@@ -19,16 +19,16 @@
 @; simultaneously.
 
 A @deftech{process} is a @racket-tech{thread}-like concurrency primitive.
-Processes extend the Racket @racket-tech{thread} model with four new features:
+Processes add four new features to Racket's @racket-tech{thread} model:
 
 @itemlist[
   @item{A pair of unbuffered @racket-tech{channels} built in: an
     @deftech{input channel} and an @deftech{output channel}.}
+  @item{An out-of-band @tech{command handler}.}
   @item{An @deftech{on-stop hook} to call when a process ends gracefully, but
     not when it dies abruptly.}
   @item{An @deftech{on-dead hook} to call unconditionally when a process
     terminates.}
-  @item{An out-of-band @tech{command handler}.}
 ]
 
 Unhandled exceptions are fatal. Attempting to @racket[wait] on a process
@@ -40,15 +40,20 @@ killed by an unhandled exception raises @racket[unhandled-exception].
 ]
 
 A process can be applied as a procedure, which invokes its @deftech{command
-handler}. The @tech{command handler} can be any procedure. The default
-@tech{command handler} immediately and unconditionally raises
-@racket[unhandled-command].
+handler}. The @tech{command handler} is a list of procedures. The result of a
+command is the same as the result of the first procedure in the list to return
+a value when applied to the arguments of the command. If a procedure raises
+@racket[unhandled-command] and it is not the last procedure in the list, the
+next procedure is tried; if it is the last procedure in the list, or the list
+is empty, @racket[unhandled-command] is raised.
 
 @examples[#:eval neuron-evaluator
   (define H (hash 'prop1 1 'method2 (λ _ 2)))
-  (define π (start deadlock #:command (λ vs
-                                        (or (hash-ref H (car vs) #f)
-                                            (raise (unhandled-command vs))))))
+  (define π
+    (start deadlock
+           #:command (λ vs
+                       (or (hash-ref H (car vs) #f)
+                           (raise (unhandled-command vs))))))
   (π 'prop1)
   ((π 'method2) 5)
   (eval:error (π 'x 'y))
