@@ -303,6 +303,17 @@ Processes are created explicitly by the @racket[start] function.
   ]
 }
 
+@defproc[(simulator [proc (-> real? any)]
+                    [#:rate rate real? 10]
+                    [#:on-stop on-stop (-> any) void]
+                    [#:on-dead on-dead (-> any) void]
+                    [#:command handler (or/c procedure? (listof procedure?)) π]
+                    ) process?]{
+  Returns a @deftech{simulator process}. Repeatedly calls @racket[proc] at a
+  frequency of @racket[rate] times per second. Applies @racket[proc] to a
+  single argument containing the number of milliseconds since the last call.
+}
+
 @defproc[(proxy [π process?]
                 [#:on-take on-take (-> any/c any/c) values]
                 [#:on-emit on-emit (-> any/c any/c) values]

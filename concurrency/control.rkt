@@ -38,6 +38,12 @@
                 #:on-dead (-> any)
                 #:command (or/c procedure? (listof procedure?)))
                process?)]
+  [simulator (->* ((-> real? any))
+                  (#:rate real?
+                   #:on-stop (-> any)
+                   #:on-dead (-> any)
+                   #:command (or/c procedure? (listof procedure?)))
+                  process?)]
   [proxy (->* (process?)
               (#:on-take (-> any/c any/c)
                #:on-emit (-> any/c any/c)
@@ -150,6 +156,23 @@
                               (cond [(equal? vs '(sink)) snk]
                                     [(equal? vs '(source)) src]
                                     [else (raise (unhandled-command vs))]))))))
+
+(define (simulator proc
+                   #:rate [rate 10]
+                   #:on-stop [on-stop void]
+                   #:on-dead [on-dead void]
+                   #:command [handler null])
+  (start
+   (λ ()
+     (define period (/ 1000.0 rate))
+     (define timestamp (current-inexact-milliseconds))
+     (forever
+       (set! timestamp (+ timestamp period))
+       (sync (alarm-evt timestamp))
+       (proc period)))
+   #:on-stop on-stop
+   #:on-dead on-dead
+   #:command handler))
 
 (define (proxy π
                #:on-take [on-take values]
@@ -412,6 +435,15 @@
     (define src (source deadlock))
     (define sock (socket (sink deadlock) src))
     (check eq? (sock 'source) src))
+
+  (test-case
+    "A simulator calls proc at a frequency of rate."
+    (define N 0)
+    (define t0 (current-inexact-milliseconds))
+    (wait (simulator (λ _ (set! N (+ N 1)) (when (= N 10) (die))) #:rate 100))
+    (define t10 (current-inexact-milliseconds))
+    (check = N 10)
+    (check >= (- t10 t0) 100))
 
   (test-case
     "A proxy calls on-take and forwards to π."
