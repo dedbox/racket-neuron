@@ -6,18 +6,6 @@
 
 @(defmodule neuron/concurrency #:packages ("neuron"))
 
-@(define (racket-tech . args)
-   (apply tech #:doc '(lib "scribblings/reference/reference.scrbl") args))
-
-@(define neuron-evaluator
-   (parameterize ([sandbox-output 'string]
-                  [sandbox-error-output 'string]
-                  [sandbox-memory-limit 50])
-     (make-evaluator 'racket/base '(require neuron))))
-
-@; Dendrites are synaptic sites. Several of a neuron's dendrites may fire
-@; simultaneously.
-
 A @deftech{process} is a @racket-tech{thread}-like concurrency primitive.
 Processes add four new features to Racket's @racket-tech{thread} model:
 

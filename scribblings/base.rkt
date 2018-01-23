@@ -15,6 +15,8 @@
  racket/base
  racket/contract)
 
+(provide (all-defined-out))
+
 (define (layer w h str
                #:t [t (hline w 0)]
                #:r [r (vline 0 h)]
@@ -30,4 +32,11 @@
    (T (R (B (L (filled-rectangle w h #:color bg #:draw-border? #f)))))
    (colorize (text str 'roman) fg)))
 
-(provide layer)
+(define (racket-tech . args)
+  (apply tech #:doc '(lib "scribblings/reference/reference.scrbl") args))
+
+(define neuron-evaluator
+  (parameterize ([sandbox-output 'string]
+                 [sandbox-error-output 'string]
+                 [sandbox-memory-limit 50])
+    (make-evaluator 'racket/base '(require neuron))))
