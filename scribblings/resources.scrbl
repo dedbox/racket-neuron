@@ -5,8 +5,6 @@
 @title{Control Your Resources}
 
 @include-section["concurrency.scrbl"]
+@include-section["data-flow.scrbl"]
 
-@section{Data Flow}
-@subsection{Byte Sources and Sinks}
-@subsection{Encoders and Decoders}
 @section{Evaluation}
