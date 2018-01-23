@@ -354,5 +354,6 @@ Processes are created explicitly by the @racket[start] function.
 
 @defproc[(shutdown-evt [π process?]) evt?]{
   Gives @racket[eof] to @racket[π] and returns a @racket-tech{synchronizable
-  event} that becomes @racket-tech{ready for synchronization} when π dies.
+  event} that becomes @racket-tech{ready for synchronization} when @racket[π]
+  dies.
 }
