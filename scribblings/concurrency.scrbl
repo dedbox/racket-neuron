@@ -252,7 +252,7 @@ Processes are created explicitly by the @racket[start] function.
                  [#:on-dead on-dead (-> any) void]
                  [#:command handler (or/c procedure? (listof procedure?)) null]
                  ) process?]{
-  Returns a @deftech{server process}. Applies @racket[proc] to each value
+  Returns a @deftech{server} process. Applies @racket[proc] to each value
   taken and emits the result.
 }
 
@@ -261,7 +261,7 @@ Processes are created explicitly by the @racket[start] function.
                [#:on-dead on-dead (-> any) void]
                [#:command handler (or/c procedure? (listof procedure?)) null]
                ) process?]{
-  Returns a @deftech{sink process}. Applies @racket[proc] to each value taken
+  Returns a @deftech{sink} process. Applies @racket[proc] to each value taken
   and ignores the result.
 }
 
@@ -270,7 +270,7 @@ Processes are created explicitly by the @racket[start] function.
                  [#:on-dead on-dead (-> any) void]
                  [#:command handler (or/c procedure? (listof procedure?)) null]
                  ) process?]{
-  Returns a @deftech{source process}. Calls @racket[proc] with no arguments
+  Returns a @deftech{source} process. Calls @racket[proc] with no arguments
   repeatedly and emits each result.
 }
 
@@ -280,7 +280,7 @@ Processes are created explicitly by the @racket[start] function.
                  [#:on-dead on-dead (-> any) void]
                  [#:command handler (or/c procedure? (listof procedure?)) null]
                  ) process?]{
-  Returns a @deftech{socket process}. Forwards to @racket[snk] and from
+  Returns a @deftech{socket} process. Forwards to @racket[snk] and from
   @racket[src]. Stops @racket[snk] and @racket[src] when it stops. Dies when
   @racket[snk] or @racket[src] die.
 
@@ -297,7 +297,7 @@ Processes are created explicitly by the @racket[start] function.
                     [#:on-dead on-dead (-> any) void]
                     [#:command handler (or/c procedure? (listof procedure?)) π]
                     ) process?]{
-  Returns a @deftech{simulator process}. Repeatedly calls @racket[proc] at a
+  Returns a @deftech{simulator} process. Repeatedly calls @racket[proc] at a
   frequency of @racket[rate] times per second. Applies @racket[proc] to a
   single argument containing the number of milliseconds since the last call.
 }
@@ -309,7 +309,7 @@ Processes are created explicitly by the @racket[start] function.
                 [#:on-dead on-dead (-> any) void]
                 [#:command handler (or/c procedure? (listof procedure?)) π]
                 ) process?]{
-  Returns a @deftech{proxy process}. Forwards values to and from @racket[π].
+  Returns a @deftech{proxy} process. Forwards values to and from @racket[π].
   Calls @racket[on-take] and @racket[on-emit] appropriately. Stops @racket[π]
   when it stops. Dies when @racket[π] dies.
 }
@@ -319,7 +319,7 @@ Processes are created explicitly by the @racket[start] function.
                [#:on-dead on-dead (-> any) void]
                [#:command handler (or/c procedure? (listof procedure?)) null]
                ) process?]{
-  Returns a @deftech{pipe process}. Calls @racket[π]s in series, implicitly
+  Returns a @deftech{pipe} process. Calls @racket[π]s in series, implicitly
   starting with @racket[take] and ending with @racket[emit]. Stops all
   @racket[π]s when it stops. Dies when any @racket[π] dies.
 }
@@ -330,7 +330,7 @@ Processes are created explicitly by the @racket[start] function.
                  [#:on-dead on-dead (-> any) void]
                  [#:command handler (or/c procedure? (listof procedure?)) null]
                  ) process?]{
-  Returns a @deftech{bridge process}. Forwards from @racket[π1] to
+  Returns a @deftech{bridge} process. Forwards from @racket[π1] to
   @racket[π2], and vice versa. Stops @racket[π1] and @racket[π2] when it
   stops. Dies when @racket[π1] or @racket[π2] die.
 }
@@ -342,10 +342,10 @@ Processes are created explicitly by the @racket[start] function.
                   [#:on-dead on-dead (-> any) void]
                   [#:command handler (or/c procedure? (listof procedure?)) null]
                   ) process?]{
-  Returns a @deftech{managed process}, a specialized @tech{proxy process}.
-  Forwards non-@racket[eof] values to and from @racket[π]. Calls
-  @racket[on-take-eof] or @racket[on-emit-eof] appropriately when @racket[eof]
-  is encountered. Stops @racket[π] when it stops. Dies when @racket[π] dies.
+  Returns a @deftech{managed} process. Forwards non-@racket[eof] values to and
+  from @racket[π]. Calls @racket[on-take-eof] or @racket[on-emit-eof]
+  appropriately when @racket[eof] is encountered. Stops @racket[π] when it
+  stops. Dies when @racket[π] dies.
 }
 
 @defproc[(shutdown [π process?]) void?]{
