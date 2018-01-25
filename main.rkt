@@ -3,4 +3,5 @@
 
 (require neuron/private/require)
 
-(require-and-provide neuron/concurrency)
+(require-and-provide neuron/concurrency
+                     neuron/data-flow)
