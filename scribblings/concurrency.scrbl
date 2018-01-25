@@ -282,7 +282,7 @@ Processes are created explicitly by the @racket[start] function.
                  ) process?]{
   Returns a @deftech{socket} process. Forwards to @racket[snk] and from
   @racket[src]. Stops @racket[snk] and @racket[src] when it stops. Dies when
-  @racket[snk] or @racket[src] die.
+  both @racket[snk] and @racket[src] die.
 
   Commands:
   @itemlist[

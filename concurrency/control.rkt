@@ -148,7 +148,7 @@
    (λ ()
      (sync (thread (λ () (forever (give snk (take)))))
            (thread (λ () (forever (emit (recv src)))))
-           (handle-evt (choice-evt snk src) die)))
+           (handle-evt (evt-set snk src) die)))
    #:on-stop (λ () (on-stop) (stop snk) (stop src))
    #:on-dead on-dead
    #:command (flatten (list handler
@@ -409,20 +409,32 @@
     (check-true (async-channel-get ch)))
 
   (test-case
-    "A socket dies when snk dies."
+    "A socket dies when snk and src die."
     (define snk (sink deadlock))
-    (define sock (socket snk (source deadlock)))
+    (define src (source deadlock))
+    (define sock (socket snk src))
     (kill snk)
+    (kill src)
     (wait sock)
     (check-true (dead? sock)))
 
   (test-case
-    "A socket dies when src dies."
+    "A socket does not die when snk dies if src is alive."
+    (define snk (sink deadlock))
     (define src (source deadlock))
-    (define sock (socket (sink deadlock) src))
+    (define sock (socket snk src))
+    (kill snk)
+    (check-true (alive? src))
+    (check-false (dead? sock)))
+
+  (test-case
+    "A socket does not die when src dies if snk is alive."
+    (define snk (sink deadlock))
+    (define src (source deadlock))
+    (define sock (socket snk src))
     (kill src)
-    (wait sock)
-    (check-true (dead? sock)))
+    (check-true (alive? snk))
+    (check-false (dead? sock)))
 
   (test-case
     "The socket command 'sink returns snk."
