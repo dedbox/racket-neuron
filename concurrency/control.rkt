@@ -22,7 +22,7 @@
                 #:on-dead (-> any)
                 #:command (or/c procedure? (listof procedure?)))
                process?)]
-  [sink (->* ((-> any/c void?))
+  [sink (->* ((-> any/c any))
              (#:on-stop (-> any)
               #:on-dead (-> any)
               #:command (or/c procedure? (listof procedure?)))

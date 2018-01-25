@@ -256,7 +256,7 @@ Processes are created explicitly by the @racket[start] function.
   taken and emits the result.
 }
 
-@defproc[(sink [proc (-> any/c void?)]
+@defproc[(sink [proc (-> any/c any)]
                [#:on-stop on-stop (-> any) void]
                [#:on-dead on-dead (-> any) void]
                [#:command handler (or/c procedure? (listof procedure?)) null]
