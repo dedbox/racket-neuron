@@ -150,10 +150,7 @@ A @deftech{codec type} is ...
       (codec read writeln
              (open-input-string "123 abc")
              (open-output-string)))
-    (void
-     (give cdc 987)
-     (give cdc 'zyx)
-     (give cdc eof))
+    (for-each (curry give cdc) (list 987 'zyx eof))
     (recv cdc)
     (recv cdc)
     (recv cdc)
