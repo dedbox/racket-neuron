@@ -8,6 +8,8 @@
 
 @section{Input and Output}
 
+@subsection{Ports}
+
 @defproc[(port-sink [out-port output-port?]) process?]{
   Returns a @tech{sink} that writes byte strings to @racket[out-port]. Stops
   when given @racket[eof]. Closes @racket[out-port] when it stops. Dies when
@@ -60,7 +62,9 @@
   sink @racket[(port-sink out-port)].
 }
 
-@section{Decoding and Encoding Bytes}
+@subsection{Files}
+
+@section{Decoding and Encoding}
 
 A @deftech{parser} is ...
 
@@ -196,7 +200,7 @@ A @deftech{codec type} is ...
   ]
 }
 
-@section{Codecs}
+@subsection{Codecs}
 
 @deftogether[(@defproc[(line-parser [in-port input-port?]) any/c]
               @defproc[(line-printer [out-port output-port?]) any/c]
@@ -253,7 +257,6 @@ A @deftech{codec type} is ...
 }
 
 @section{File system}
-
 @section{Network}
 @subsection{TCP}
 @subsection{UDP}

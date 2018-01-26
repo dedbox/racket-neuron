@@ -162,8 +162,8 @@ for building decentralized run time environments and programs.
 
 @section{Grow a Community}
 @subsection{Identity}
-@subsubsection{Association}
-@subsubsection{Accountability}
+@subsection{Association}
+@subsection{Accountability}
 @subsection{Policy}
 @subsubsection{Execution}
 @subsubsection{Enforcement}
