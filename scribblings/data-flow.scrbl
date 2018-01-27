@@ -24,10 +24,7 @@
   @examples[
     #:eval neuron-evaluator
     (define snk (port-sink (open-output-string)))
-    (void
-     (give snk #"123")
-     (give snk #"ab")
-     (give snk eof))
+    (for-each (curry give snk) (list #"123" #"ab" eof))
     (get-output-string (snk 'output-port))
   ]
 }
@@ -83,9 +80,9 @@ A @deftech{codec type} is ...
 @defproc[(decoder [prs parser/c]
                   [in-port input-port?]
                   ) process?]{
-  Returns a @deftech{decoder} @tech{source}. Calls @racket[(emit (prs
-  in-port))] until @racket[prs] returns @racket[eof]. Closes @racket[in-port]
-  when it stops. Dies when @racket[in-port] closes.
+  Returns a @deftech{decoder} @tech{source} process. Calls @racket[(emit (prs
+  in-port))]. Stops when @racket[prs] returns @racket[eof]. Closes
+  @racket[in-port] when it stops. Dies when @racket[in-port] closes.
 
   Commands:
 
@@ -106,8 +103,8 @@ A @deftech{codec type} is ...
 @defproc[(encoder [prn printer/c]
                   [out-port output-port?]
                   ) process?]{
-  Returns an @deftech{encoder} @tech{sink}. Calls @racket[(prn (take)
-  out-port)] until it takes @racket[eof]. Closes @racket[out-port] when it
+  Returns an @deftech{encoder} @tech{sink} process. Calls @racket[(prn (take)
+  out-port)]. Stops when given @racket[eof]. Closes @racket[out-port] when it
   stops. Dies when @racket[out-port] closes.
 
   Commands
@@ -120,9 +117,7 @@ A @deftech{codec type} is ...
   @examples[
     #:eval neuron-evaluator
     (define enc (encoder writeln (open-output-string)))
-    (give enc 123)
-    (give enc 'abc)
-    (give enc eof)
+    (for-each (curry give enc) (list 123 'abc eof))
     (get-output-string (enc 'output-port))
   ]
 }
@@ -132,8 +127,8 @@ A @deftech{codec type} is ...
                 [in-port input-port?]
                 [out-port output-port?]
                 ) process?]{
-  Returns a @deftech{codec} @tech{socket} with @tech{source} @racket[(encoder
-  prn out-port)] and @tech{sink} @racket[(decoder prs in-port)].
+  Returns a @deftech{codec} @tech{socket} process with source @racket[(encoder
+  prn out-port)] and sink @racket[(decoder prs in-port)].
 
   Commands:
 
@@ -230,7 +225,7 @@ A @deftech{codec type} is ...
     (define cdc (sexp-codec (open-input-string "(#hasheq((ab . 12)) 34)")
                             (open-output-string)))
     (recv cdc)
-    (give cdc '(987 zyx))
+    (give cdc (list 987 'zyx))
     (get-output-string ((cdc 'encoder) 'output-port))
   ]
 }
