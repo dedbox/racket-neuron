@@ -7,37 +7,33 @@
 @(defmodule neuron/concurrency #:packages ("neuron"))
 
 A @deftech{process} is a @racket-tech{thread}-like concurrency primitive.
-Processes add four new features to Racket's @racket-tech{thread} model:
+Processes change Racket's @racket-tech{thread} model in the following ways:
 
 @itemlist[
-  @item{A pair of unbuffered @racket-tech{channels} built in: an
-    @deftech{input channel} and an @deftech{output channel}.}
-  @item{An out-of-band @tech{command handler}.}
-  @item{An @deftech{on-stop hook} to call when a process ends gracefully, but
-    not when it dies abruptly.}
-  @item{An @deftech{on-dead hook} to call unconditionally when a process
-    terminates.}
-]
-
-Unhandled exceptions are fatal. Attempting to @racket[wait] on a process
-killed by an unhandled exception raises @racket[unhandled-exception].
-
-@examples[
-  #:eval neuron-evaluator
-  (define π (process (λ () (raise 'VAL))))
-  (eval:error (wait π))
+  @item{Drop the built in @secref["threadmbox" #:doc '(lib
+    "scribblings/reference/reference.scrbl")].}
+  @item{Add a pair of unbuffered @racket-tech{channels}: an @deftech{input
+    channel} and an @deftech{output channel}.}
+  @item{Add an out-of-band @tech{command handler}.}
+  @item{Add an @deftech{on-stop hook} that is called when a process ends
+    gracefully, but not when it dies abruptly.}
+  @item{Add an @deftech{on-dead hook} that is called unconditionally when a
+    process terminates.}
 ]
 
 A process can be applied as a procedure, which invokes its @deftech{command
-handler}. The @tech{command handler} is a list of procedures. The result of a
-command is the same as the result of the first procedure in the list to return
-a value when applied to the arguments of the command. If a procedure raises
-@racket[unhandled-command] and it is not the last procedure in the list, the
-next procedure is tried; if it is the last procedure in the list, or the list
-is empty, @racket[unhandled-command] is raised.
+handler}. The @tech{command handler} is a list of procedures, and the result
+of the command is the same as the result of the first procedure in the list to
+return a value other than @racket[unhandled]. When a procedure returns
+@racket[unhandled], the next procedure is tried. If the last procedure in the
+list returns @racket[unhandled] or the list is empty,
+@racket[unhandled-command] is raised.
 
-@examples[#:eval neuron-evaluator
-  (define H (hash 'prop1 1 'method2 (λ _ 2)))
+@examples[
+  #:eval neuron-evaluator
+  #:label #f
+  (define H (hash 'property-A 1
+                  'method-B (λ _ 2)))
   (define π
     (start (process deadlock)
            #:command (λ vs (hash-ref H (car vs) unhandled))))
@@ -111,18 +107,14 @@ Processes are created explicitly by the @racket[process] function. Use
 
 @defproc[(stop [π process?]) void?]{
   Gracefully terminates the execution of @racket[π] if it is running. Blocks
-  until @racket[wait] would not block. If @racket[π] is already dead,
-  @racket[stop] has no effect.
+  until @racket[π] is dead. If @racket[π] is already dead, @racket[stop] has
+  no effect.
 }
 
 @defproc[(kill [π process?]) void?]{
   Immediately terminates the execution of @racket[π] if it is running. Blocks
-  until @racket[wait] would not block. If @racket[π] is already dead,
-  @racket[kill] has no effect.
-}
-
-@defproc[(wait [π process?]) void?]{
-  Blocks execution of the current process until @racket[π] is dead.
+  until @racket[π] is dead. If @racket[π] is already dead, @racket[kill] has
+  no effect.
 }
 
 @defproc[(dead? [π process?]) boolean?]{

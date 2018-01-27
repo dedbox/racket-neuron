@@ -8,7 +8,6 @@
 (provide
  start
  (contract-out
-  [struct unhandled-exception ([value any/c])]
   [struct unhandled-command ([args (listof any/c)])]
   [unhandled symbol?]
   [process? predicate/c]
@@ -25,7 +24,6 @@
   [dead? (-> process? boolean?)]
   [alive? (-> process? boolean?)]))
 
-(struct unhandled-exception (value) #:transparent)
 (struct unhandled-command (args) #:transparent)
 (define unhandled (string->unreadable-symbol "unhandled"))
 
@@ -41,7 +39,7 @@
    (λ _
      (define raised (unbox (process-raised π)))
      (when (list? raised)
-       (raise (unhandled-exception (car raised))))
+       (raise (car raised)))
      π)))
 
 (define (cmd π vs)
@@ -264,4 +262,4 @@
 
   (test-case
     "wait raises unhandled-exception on unhandled exceptions."
-    (check-exn unhandled-exception? (λ () (wait (process (λ () (raise #t))))))))
+    (check-exn boolean? (λ () (wait (process (λ () (raise #t))))))))
