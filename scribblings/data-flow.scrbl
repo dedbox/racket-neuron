@@ -8,8 +8,6 @@
 
 @section{Input and Output}
 
-@subsection{Ports}
-
 @defproc[(port-sink [out-port output-port?]) process?]{
   Returns a @tech{sink} that writes byte strings to @racket[out-port]. Stops
   when given @racket[eof]. Closes @racket[out-port] when it stops. Dies when
@@ -59,7 +57,51 @@
   sink @racket[(port-sink out-port)].
 }
 
-@subsection{Files}
+@defproc[
+  (file-sink [path path-string?]
+             [#:mode mode-flag (or/c 'binary 'text) 'binary]
+             [#:exists exists-flag
+               (or/c 'error 'append 'update 'can-update
+                     'replace 'truncate
+                     'must-truncate 'truncate/replace) 'error]
+             ) process?]{
+  Returns a @racket[port-sink] for writing to the file specified by
+  @racket[path]. The @racket[mode-flag] and @racket[exists-flag] are the same
+  as for @racket[open-output-file].
+}
+
+@defproc[
+  (file-source [path path-string?]
+               [amt exact-nonnegative-integer?]
+               [#:mode mode-flag (or/c 'binary 'text) 'binary]) process?]{
+  Returns a @racket[port-source] for reading from the file specified by
+  @racket[path]. The @racket[mode-flag] is the same as for
+  @racket[open-input-file].
+}
+
+@defproc[(byte-sink) process?]{
+  Returns a @tech{sink} that accumulates byte strings. Emits accumulated bytes
+  when it is given @racket[eof] and when it stops.
+
+  @examples[
+    #:eval neuron-evaluator
+    (define snk (byte-sink))
+    (for-each (curry give snk) (list #"abc" #"123" eof))
+    (recv snk)
+  ]
+}
+
+@defproc[(string-sink) process?]{
+  Returns a @tech{sink} that accumulates strings. Emits accumulated string
+  when it is given @racket[eof] and when it stops.
+
+  @examples[
+    #:eval neuron-evaluator
+    (define snk (string-sink))
+    (for-each (curry give snk) (list "λx" ".x" eof))
+    (recv snk)
+  ]
+}
 
 @section{Decoding and Encoding}
 
