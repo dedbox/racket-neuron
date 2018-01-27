@@ -29,8 +29,8 @@
   [pipe (-> process? process? ... process?)]
   [bridge (-> process? process? process?)]
   [managed (->* (process?)
-                (#:on-take-eof (-> any)
-                 #:on-emit-eof (-> any))
+                (#:on-take-eof (-> process? any)
+                 #:on-emit-eof (-> process? any))
                 process?)]
   [shutdown (-> process? void?)]))
 
@@ -133,14 +133,13 @@
 (define (managed π
                  #:on-take-eof [on-take-eof stop]
                  #:on-emit-eof [on-emit-eof stop])
-  (define (loop v-in hook v-out)
-    (define v (v-in))
-    (if (eof-object? v) (hook π) (begin (v-out v) (loop v-in hook v-out))))
   (start
    (process
     (λ ()
-      (sync (thread (λ () (loop take on-take-eof (λ (v) (give π v)))))
-            (thread (λ () (loop (λ () (recv π)) on-emit-eof emit)))
+      (define (handle v on-eof else-fun)
+        (if (eof-object? v) (on-eof π) (else-fun v)))
+      (sync (thread (λ () (forever (handle (take) on-take-eof (curry give π)))))
+            (thread (λ () (forever (handle (recv π) on-emit-eof emit))))
             (handle-evt π die))))
    #:on-stop (λ () (stop π))))
 
