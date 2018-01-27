@@ -57,28 +57,6 @@
   sink @racket[(port-sink out-port)].
 }
 
-@defproc[
-  (file-sink [path path-string?]
-             [#:mode mode-flag (or/c 'binary 'text) 'binary]
-             [#:exists exists-flag
-               (or/c 'error 'append 'update 'can-update
-                     'replace 'truncate
-                     'must-truncate 'truncate/replace) 'error]
-             ) process?]{
-  Returns a @racket[port-sink] for writing to the file specified by
-  @racket[path]. The @racket[mode-flag] and @racket[exists-flag] are the same
-  as for @racket[open-output-file].
-}
-
-@defproc[
-  (file-source [path path-string?]
-               [amt exact-nonnegative-integer?]
-               [#:mode mode-flag (or/c 'binary 'text) 'binary]) process?]{
-  Returns a @racket[port-source] for reading from the file specified by
-  @racket[path]. The @racket[mode-flag] is the same as for
-  @racket[open-input-file].
-}
-
 @defproc[(byte-sink) process?]{
   Returns a @tech{sink} that accumulates byte strings. Emits accumulated bytes
   when it is given @racket[eof] and when it stops.
@@ -102,6 +80,45 @@
     (recv snk)
   ]
 }
+
+@defproc[
+  (file-sink [path path-string?]
+             [#:mode mode-flag (or/c 'binary 'text) 'binary]
+             [#:exists exists-flag
+               (or/c 'error 'append 'update 'can-update
+                     'replace 'truncate
+                     'must-truncate 'truncate/replace) 'error]
+             ) process?]{
+  Returns a @racket[port-sink] for writing to the file specified by
+  @racket[path]. The @racket[mode-flag] and @racket[exists-flag] are the same
+  as for @racket[open-output-file].
+}
+
+@defproc[
+  (file-source [path path-string?]
+               [amt exact-nonnegative-integer?]
+               [#:mode mode-flag (or/c 'binary 'text) 'binary]) process?]{
+  Returns a @racket[port-source] for reading from the file specified by
+  @racket[path]. The @racket[mode-flag] is the same as for
+  @racket[open-input-file].
+}
+
+@defproc[(directory-source [path path-string? (current-directory)]) process?]{
+  Returns a @racket[source] for the names of all files and directories in the
+  directory specified by @racket[path]. Emits names in lexicgraphic order and
+  then dies.
+
+  @examples[
+    #:eval neuron-evaluator
+    (define π (directory-source))
+    (while (alive? π) (displayln (recv π)))
+  ]
+}
+
+
+@subsection{Network}
+@subsubsection{TCP}
+@subsubsection{UDP}
 
 @section{Decoding and Encoding}
 
@@ -280,6 +297,8 @@ A @deftech{codec type} is ...
                                    [out-port output-port?]) process?])]{
   @other-doc['(lib "json/json.scrbl")] @tech{codec type}.
 
+  To change how null is represented, set the @racket[json-null] parameter.
+
   @examples[
     #:eval neuron-evaluator
     (define cdc (json-codec (open-input-string "[{\"ab\":12},34]")
@@ -289,8 +308,3 @@ A @deftech{codec type} is ...
     (get-output-string ((cdc 'encoder) 'output-port))
   ]
 }
-
-@section{File system}
-@section{Network}
-@subsection{TCP}
-@subsection{UDP}

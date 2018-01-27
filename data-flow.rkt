@@ -17,6 +17,8 @@
   [port-source (-> exact-nonnegative-integer? input-port? process?)]
   [port-socket (-> exact-nonnegative-integer? input-port? output-port?
                    process?)]
+  [byte-sink (-> process?)]
+  [string-sink (-> process?)]
   [file-sink (->* (path-string?)
                   (#:mode (or/c 'binary 'text)
                    #:exists (or/c 'error 'append 'update 'can-update
@@ -26,8 +28,7 @@
   [file-source (->* (path-string? exact-nonnegative-integer?)
                     (#:mode (or/c 'binary 'text))
                     process?)]
-  [byte-sink (-> process?)]
-  [string-sink (-> process?)]))
+  [directory-source (->* () (path-string?) process?)]))
 
 (define (port-sink out-port)
   (start (managed (sink (λ (bs)
@@ -72,6 +73,9 @@
   (start
    (managed (sink (curryr display out-port)) #:on-take-eof emit-next-string)
    #:on-stop emit-next-string))
+
+(define (directory-source [path (current-directory)])
+  (process (λ () (for-each emit (directory-list path)))))
 
 ;;; -----------------------------------------------------------------------------
 

@@ -12,6 +12,7 @@
 
 (require-for-label-and-provide
  neuron
+ json
  racket/base
  racket/contract)
 
