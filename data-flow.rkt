@@ -18,41 +18,24 @@
   [port-socket (-> exact-nonnegative-integer? input-port? output-port?
                    process?)]))
 
-(define (port-sink out-port
-                   #:on-stop [on-stop void]
-                   #:on-dead [on-dead void]
-                   #:command [handler null])
-  (managed
-   (sink (λ (bs) (with-handlers ([exn:fail? die]) (write-bytes bs out-port))))
-   #:on-stop (λ () (on-stop) (close-output-port out-port))
-   #:on-dead on-dead
-   #:command (flatten (list handler
-                            (λ vs
-                              (cond [(equal? vs '(output-port)) out-port]
-                                    [else (raise (unhandled-command vs))]))))))
+(define (port-sink out-port)
+  (start (managed (sink (λ (bs)
+                          (with-handlers ([exn:fail? die])
+                            (write-bytes bs out-port)))))
+         #:on-stop (λ () (close-output-port out-port))
+         #:command
+         (λ vs (if (equal? vs '(output-port)) out-port unhandled-command))))
 
-(define (port-source amt in-port
-                     #:on-stop [on-stop void]
-                     #:on-dead [on-dead void]
-                     #:command [handler null])
-  (managed
-   (source (λ () (with-handlers ([exn:fail? die]) (read-bytes amt in-port))))
-   #:on-stop (λ () (on-stop) (close-input-port in-port))
-   #:on-dead on-dead
-   #:command (flatten (list handler
-                            (λ vs
-                              (cond [(equal? vs '(input-port)) in-port]
-                                    [else (raise (unhandled-command vs))]))))))
+(define (port-source amt in-port)
+  (start (managed (source (λ ()
+                            (with-handlers ([exn:fail? die])
+                              (read-bytes amt in-port)))))
+         #:on-stop (λ () (close-input-port in-port))
+         #:command (λ vs
+                     (if (equal? vs '(input-port)) in-port unhandled-command))))
 
-(define (port-socket amt in-port out-port
-                     #:on-stop [on-stop void]
-                     #:on-dead [on-dead void]
-                     #:command [handler null])
-  (socket (port-sink out-port)
-          (port-source amt in-port)
-          #:on-stop on-stop
-          #:on-dead on-dead
-          #:command handler))
+(define (port-socket amt in-port out-port)
+  (socket (port-sink out-port) (port-source amt in-port)))
 
 ;;; -----------------------------------------------------------------------------
 
@@ -87,49 +70,33 @@
 (define parser/c (-> input-port? any))
 (define printer/c (-> any/c output-port? any))
 
-(define (decoder prs in-port
-                 #:on-stop [on-stop void]
-                 #:on-dead [on-dead void]
-                 #:command [handler null])
-  (managed (source (λ () (with-handlers ([exn:fail? die]) (prs in-port))))
-           #:on-stop (λ () (on-stop) (close-input-port in-port))
-           #:on-dead on-dead
-           #:command (flatten
-                      (list handler
-                            (λ vs
-                              (cond [(equal? vs '(parser)) prs]
-                                    [(equal? vs '(input-port)) in-port]
-                                    [else (raise (unhandled-command vs))]))))))
+(define (decoder prs in-port)
+  (start
+   (managed (source (λ () (with-handlers ([exn:fail? die]) (prs in-port)))))
+   #:on-stop (λ () (close-input-port in-port))
+   #:command (λ vs
+               (cond [(equal? vs '(parser)) prs]
+                     [(equal? vs '(input-port)) in-port]
+                     [else unhandled]))))
 
-(define (encoder prn out-port
-                 #:on-stop [on-stop void]
-                 #:on-dead [on-dead void]
-                 #:command [handler null])
-  (managed (sink (λ (v) (with-handlers ([exn:fail? die]) (prn v out-port))))
-           #:on-stop (λ () (on-stop) (close-output-port out-port))
-           #:on-dead on-dead
-           #:command (flatten
-                      (list handler
-                            (λ vs
-                              (cond [(equal? vs '(printer)) prn]
-                                    [(equal? vs '(output-port)) out-port]
-                                    [else (raise (unhandled-command vs))]))))))
+(define (encoder prn out-port)
+  (start
+   (managed (sink (λ (v) (with-handlers ([exn:fail? die]) (prn v out-port)))))
+   #:on-stop (λ () (close-output-port out-port))
+   #:command (λ vs
+               (cond [(equal? vs '(printer)) prn]
+                     [(equal? vs '(output-port)) out-port]
+                     [else unhandled]))))
 
-(define (codec prs prn in-port out-port
-               #:on-stop [on-stop void]
-               #:on-dead [on-dead void]
-               #:command [handler null])
+(define (codec prs prn in-port out-port)
   (define dec (decoder prs in-port))
   (define enc (encoder prn out-port))
-  (socket enc dec
-          #:on-stop (λ () (on-stop) (stop enc) (stop dec))
-          #:on-dead on-dead
-          #:command (flatten
-                     (list handler
-                           (λ vs
-                             (cond [(equal? vs '(decoder)) dec]
-                                   [(equal? vs '(encoder)) enc]
-                                   [else (raise (unhandled-command vs))]))))))
+  (start (socket enc dec)
+         #:on-stop (λ () (stop enc) (stop dec))
+         #:command (λ vs
+                     (cond [(equal? vs '(decoder)) dec]
+                           [(equal? vs '(encoder)) enc]
+                           [else unhandled]))))
 
 (define (make-codec-type name prs prn)
   (values (λ (in-port) (decoder prs in-port))

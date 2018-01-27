@@ -3,69 +3,75 @@
 (require racket/contract/base
          (only-in racket/list flatten))
 
+(require (for-syntax racket/base))
+
 (provide
+ start
  (contract-out
+  [struct unhandled-exception ([value any/c])]
+  [struct unhandled-command ([args (listof any/c)])]
+  [unhandled symbol?]
+  [process? predicate/c]
+  [process (-> (-> any) process?)]
+  [process-in-ch (-> process? channel?)]
+  [process-out-ch (-> process? channel?)]
   [current-process (-> process?)]
   [quit (->* () #:rest (listof any/c) void?)]
   [die (->* () #:rest (listof any/c) void?)]
   [deadlock (->* () #:rest (listof any/c) void?)]
-  [struct process ([thread thread?]
-                   [dead-cont continuation?]
-                   [stop-cont continuation?]
-                   [handler (listof procedure?)]
-                   [raised (box/c (or/c #f (cons/c any/c null)))]
-                   [input-ch channel?]
-                   [output-ch channel?])]
-  [dead? (-> process? boolean?)]
-  [alive? (-> process? boolean?)]
-  [start (->* ((-> any))
-              (#:on-stop (-> any)
-               #:on-dead (-> any)
-               #:command (or/c procedure? (listof procedure?)))
-              process?)]
   [stop (-> process? void?)]
   [kill (-> process? void?)]
   [wait (-> process? void?)]
-  [struct unhandled-exception ([value any/c])]
-  [struct unhandled-command ([args (listof any/c)])]))
+  [dead? (-> process? boolean?)]
+  [alive? (-> process? boolean?)]))
+
+(struct unhandled-exception (value) #:transparent)
+(struct unhandled-command (args) #:transparent)
+(define unhandled (string->unreadable-symbol "unhandled"))
+
+(struct process (thread dead-cont stop-cont command raised in-ch out-ch)
+        #:constructor-name make-process
+        #:omit-define-syntaxes
+        #:property prop:evt (λ (π) (wait-evt π))
+        #:property prop:procedure (λ (π . vs) (cmd π vs)))
+
+(define (wait-evt π)
+  (handle-evt
+   (process-thread π)
+   (λ _
+     (define raised (unbox (process-raised π)))
+     (when (list? raised)
+       (raise (unhandled-exception (car raised))))
+     π)))
+
+(define (cmd π vs)
+  (let loop ([handlers (process-command π)])
+    (if (null? handlers)
+        (raise (unhandled-command vs))
+        (let ([result (apply (car handlers) vs)])
+          (if (equal? result unhandled)
+              (loop (cdr handlers))
+              result)))))
 
 (define current-process (make-parameter #f))
-(define quit (λ _ ((process-stop-cont (current-process)))))
-(define die (λ _ ((process-dead-cont (current-process)))))
-(define deadlock (λ _ (sync never-evt)))
 
-(struct process
-  (thread dead-cont stop-cont handler raised input-ch output-ch)
-  #:property prop:evt
-  (λ (π)
-    (handle-evt
-     (process-thread π)
-     (λ _
-       (define raised (unbox (process-raised π)))
-       (if (list? raised)
-           (raise (unhandled-exception (car raised)))
-           π))))
-  #:property prop:procedure
-  (λ (π . args)
-    (let loop ([procs (process-handler π)])
-      (if (null? procs)
-          (raise (unhandled-command args))
-          (with-handlers ([unhandled-command? (λ _ (loop (cdr procs)))])
-            (apply (car procs) args))))))
+(define (quit . _)
+  ((process-stop-cont (current-process))))
 
-(define (dead? π)
-  (thread-dead? (process-thread π)))
+(define (die . _)
+  ((process-dead-cont (current-process))))
 
-(define (alive? π)
-  (not (dead? π)))
+(define (deadlock . _)
+  (sync never-evt))
 
-(define (start thunk
-               #:on-stop [on-stop void]
-               #:on-dead [on-dead void]
-               #:command [handler null])
+(define current-on-stop (make-parameter null))
+(define current-on-dead (make-parameter null))
+(define current-command (make-parameter null))
+
+(define (process thunk)
   (define raised (box #f))
   (define ready-ch (make-channel))
-  (define (ready-process)
+  (define (process)
     (let/ec dead-cont
       (let/ec stop-cont
         (parameterize-break #f
@@ -77,17 +83,30 @@
                             [(λ _ #t) (λ (e) (set-box! raised (list e)) (die))])
               (parameterize-break #t
                 (thunk))))))
-      (on-stop))
-    (on-dead))
-  (define π (process (thread ready-process)
-                     (channel-get ready-ch)
-                     (channel-get ready-ch)
-                     (flatten handler)
-                     raised
-                     (make-channel)
-                     (make-channel)))
+      (for ([proc (flatten (current-on-stop))]) (proc)))
+    (for ([proc (flatten (current-on-dead))]) (proc)))
+  (define π (make-process (thread process)
+                          (channel-get ready-ch)
+                          (channel-get ready-ch)
+                          (flatten (current-command))
+                          raised
+                          (make-channel)
+                          (make-channel)))
   (channel-put ready-ch π)
   π)
+
+(define-syntax start
+  (syntax-rules ()
+    [(start body ... #:on-stop on-stop)
+     (parameterize ([current-on-stop (cons on-stop (current-on-stop))])
+       (start body ...))]
+    [(start body ... #:on-dead on-dead)
+     (parameterize ([current-on-dead (cons on-dead (current-on-dead))])
+       (start body ...))]
+    [(start body ... #:command command)
+     (parameterize ([current-command (cons command (current-command))])
+       (start body ...))]
+    [(start π) π]))
 
 (define (stop π)
   (break-thread (process-thread π) 'hang-up)
@@ -100,8 +119,11 @@
 (define (wait π)
   (void (sync π)))
 
-(struct unhandled-exception (value) #:transparent)
-(struct unhandled-command (args) #:transparent)
+(define (dead? π)
+  (thread-dead? (process-thread π)))
+
+(define (alive? π)
+  (not (dead? π)))
 
 (module+ test
   (require rackunit)
@@ -110,49 +132,49 @@
 
   (test-case
     "A process is alive if it is not dead."
-    (define π (start deadlock))
+    (define π (process deadlock))
     (check-true (alive? π))
     (check-false (dead? π)))
 
   (test-case
     "A process is dead if it is not alive."
-    (define π (start void))
+    (define π (process void))
     (wait π)
     (check-true (dead? π))
     (check-false (alive? π)))
 
   (test-case
     "A process is alive when it starts."
-    (define π (start deadlock))
+    (define π (process deadlock))
     (check-true (alive? π)))
 
   (test-case
     "A process is dead after it ends."
-    (define π (start void))
+    (define π (process void))
     (wait π)
     (check-true (dead? π)))
 
   (test-case
     "A process can be stopped before it ends."
-    (define π (start deadlock))
+    (define π (process deadlock))
     (stop π)
     (check-true (dead? π)))
 
   (test-case
     "A process is dead after it is stopped."
-    (define π (start deadlock))
+    (define π (process deadlock))
     (stop π)
     (check-true (dead? π)))
 
   (test-case
     "A process can be killed before it ends."
-    (define π (start deadlock))
+    (define π (process deadlock))
     (kill π)
     (check-true (dead? π)))
 
   (test-case
     "A process is dead after it is killed."
-    (define π (start deadlock))
+    (define π (process deadlock))
     (stop π)
     (check-true (dead? π)))
 
@@ -163,25 +185,25 @@
   (test-case
     "A process calls its on-stop hook when it ends."
     (define stopped #f)
-    (wait (start void #:on-stop (λ () (set! stopped #t))))
+    (wait (start (process void) #:on-stop (λ () (set! stopped #t))))
     (check-true stopped))
 
   (test-case
     "A process calls its on-stop hook when it stops."
     (define stopped #f)
-    (stop (start deadlock #:on-stop (λ () (set! stopped #t))))
+    (stop (start (process deadlock) #:on-stop (λ () (set! stopped #t))))
     (check-true stopped))
 
   (test-case
     "A process does not call its on-stop hook when it dies."
     (define stopped #f)
-    (wait (start die #:on-stop (λ () (set! stopped #t))))
+    (wait (start (process die) #:on-stop (λ () (set! stopped #t))))
     (check-false stopped))
 
   (test-case
     "A process does not call its on-stop hook when it is killed."
     (define stopped #f)
-    (kill (start deadlock #:on-stop (λ () (set! stopped #t))))
+    (kill (start (process deadlock) #:on-stop (λ () (set! stopped #t))))
     (check-false stopped))
 
   ;; on-dead hook
@@ -189,25 +211,25 @@
   (test-case
     "A process calls its on-dead hook when it ends."
     (define dead #f)
-    (wait (start void #:on-dead (λ () (set! dead #t))))
+    (wait (start (process void) #:on-dead (λ () (set! dead #t))))
     (check-true dead))
 
   (test-case
     "A process calls its on-dead hook when it stops."
     (define dead #f)
-    (stop (start deadlock #:on-dead (λ () (set! dead #t))))
+    (stop (start (process deadlock) #:on-dead (λ () (set! dead #t))))
     (check-true dead))
 
   (test-case
     "A process calls its on-dead hook when it dies."
     (define dead #f)
-    (wait (start die #:on-dead (λ () (set! dead #t))))
+    (wait (start (process die) #:on-dead (λ () (set! dead #t))))
     (check-true dead))
 
   (test-case
     "A process calls its on-dead hook when it is killed."
     (define dead #f)
-    (kill (start deadlock #:on-dead (λ () (set! dead #t))))
+    (kill (start (process deadlock) #:on-dead (λ () (set! dead #t))))
     (check-true dead))
 
   ;; command handler
@@ -215,31 +237,31 @@
   (test-case
     "A process invokes its command handler when applied as a procedure."
     (define handled #f)
-    ((start deadlock #:command (λ (v) (set! handled v))) #t)
+    ((start (process deadlock) #:command (λ (v) (set! handled v))) #t)
     (check-true handled))
 
   ;; synchronizable event
 
   (test-case
     "A process is ready for synchronization when sync would not block."
-    (define π (start deadlock))
+    (define π (process deadlock))
     (check-false (sync/timeout 0 π))
     (kill π)
     (check-false (not (sync/timeout 0 π))))
 
   (test-case
     "The synchronization result of a process is the process itself."
-    (define π (start die))
+    (define π (process die))
     (check eq? (sync π) π))
 
   ;; unhandled exceptions
 
   (test-case
     "Unhandled exceptions are fatal."
-    (define π (start (λ () (raise #t))))
+    (define π (process (λ () (raise #t))))
     (with-handlers ([(λ _ #t) (λ (e) e)]) (wait π))
     (check-true (dead? π)))
 
   (test-case
     "wait raises unhandled-exception on unhandled exceptions."
-    (check-exn unhandled-exception? (λ () (wait (start (λ () (raise #t))))))))
+    (check-exn unhandled-exception? (λ () (wait (process (λ () (raise #t))))))))

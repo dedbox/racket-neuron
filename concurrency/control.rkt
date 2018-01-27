@@ -17,59 +17,21 @@
                    #:rest (listof (-> any/c evt?))
                    evt?)]
   [evt-loop (->* ((-> any/c evt?)) (#:init any/c) evt?)]
-  [server (->* ((-> any/c any/c))
-               (#:on-stop (-> any)
-                #:on-dead (-> any)
-                #:command (or/c procedure? (listof procedure?)))
-               process?)]
-  [sink (->* ((-> any/c any))
-             (#:on-stop (-> any)
-              #:on-dead (-> any)
-              #:command (or/c procedure? (listof procedure?)))
-             process?)]
-  [source (->* ((-> any/c))
-               (#:on-stop (-> any)
-                #:on-dead (-> any)
-                #:command (or/c procedure? (listof procedure?)))
-               process?)]
-  [socket (->* (process?
-                process?)
-               (#:on-stop (-> any)
-                #:on-dead (-> any)
-                #:command (or/c procedure? (listof procedure?)))
-               process?)]
-  [simulator (->* ((-> real? any))
-                  (#:rate real?
-                   #:on-stop (-> any)
-                   #:on-dead (-> any)
-                   #:command (or/c procedure? (listof procedure?)))
-                  process?)]
+  [server (-> (-> any/c any/c) process?)]
+  [sink (-> (-> any/c any) process?)]
+  [source (-> (-> any/c) process?)]
+  [socket (-> process? process? process?)]
+  [simulator (->* ((-> real? any)) (#:rate real?) process?)]
   [proxy (->* (process?)
               (#:on-take (-> any/c any/c)
-               #:on-emit (-> any/c any/c)
-               #:on-stop (-> any)
-               #:on-dead (-> any)
-               #:command (or/c procedure? (listof procedure?)))
+               #:on-emit (-> any/c any/c))
               process?)]
-  [pipe (->* ()
-             (#:on-stop (-> any)
-              #:on-dead (-> any)
-              #:command (or/c procedure? (listof procedure?)))
-             #:rest (listof process?)
-             process?)]
-  [bridge (->* (process?
-                process?)
-               (#:on-stop (-> any)
-                #:on-dead (-> any)
-                #:command (or/c procedure? (listof procedure?)))
-               process?)]
+  [pipe (-> process? process? ... process?)]
+  [bridge (-> process? process? process?)]
   [managed (->* (process?)
-               (#:on-take-eof (-> any)
-                #:on-emit-eof (-> any)
-                #:on-stop (-> any)
-                #:on-dead (-> any)
-                #:command (or/c procedure? (listof procedure?)))
-               process?)]
+                (#:on-take-eof (-> any)
+                 #:on-emit-eof (-> any))
+                process?)]
   [shutdown (-> process? void?)]))
 
 ;; Commands
@@ -113,119 +75,74 @@
 
 ;; Processes
 
-(define (server proc
-                #:on-stop [on-stop void]
-                #:on-dead [on-dead void]
-                #:command [handler null])
-  (start (λ () (forever (emit (proc (take)))))
-         #:on-stop on-stop
-         #:on-dead on-dead
-         #:command handler))
+(define (server proc)
+  (process (λ () (forever (emit (proc (take)))))))
 
-(define (sink proc
-              #:on-stop [on-stop void]
-              #:on-dead [on-dead void]
-              #:command [handler null])
-  (start (λ () (forever (proc (take))))
-         #:on-stop on-stop
-         #:on-dead on-dead
-         #:command handler))
+(define (sink proc)
+  (process (λ () (forever (proc (take))))))
 
-(define (source proc
-              #:on-stop [on-stop void]
-              #:on-dead [on-dead void]
-              #:command [handler null])
-  (start (λ () (forever (emit (proc))))
-         #:on-stop on-stop
-         #:on-dead on-dead
-         #:command handler))
+(define (source proc)
+  (process (λ () (forever (emit (proc))))))
 
-(define (socket snk src
-                #:on-stop [on-stop void]
-                #:on-dead [on-dead void]
-                #:command [handler null])
-  (start
-   (λ ()
-     (sync (thread (λ () (forever (give snk (take)))))
-           (thread (λ () (forever (emit (recv src)))))
-           (handle-evt (evt-set snk src) die)))
-   #:on-stop (λ () (on-stop) (stop snk) (stop src))
-   #:on-dead on-dead
-   #:command (flatten (list handler
-                            (λ vs
-                              (cond [(equal? vs '(sink)) snk]
-                                    [(equal? vs '(source)) src]
-                                    [else (raise (unhandled-command vs))]))))))
+(define (socket snk src)
+  (start (process (λ ()
+                    (sync (thread (λ () (forever (give snk (take)))))
+                          (thread (λ () (forever (emit (recv src)))))
+                          (handle-evt (evt-set snk src) die))))
+         #:on-stop (λ () (stop snk) (stop src))
+         #:command (λ vs
+                     (cond [(equal? vs '(sink)) snk]
+                           [(equal? vs '(source)) src]
+                           [else unhandled]))))
 
-(define (simulator proc
-                   #:rate [rate 10]
-                   #:on-stop [on-stop void]
-                   #:on-dead [on-dead void]
-                   #:command [handler null])
-  (start
-   (λ ()
-     (define period (/ 1000.0 rate))
-     (define timestamp (current-inexact-milliseconds))
-     (forever
-       (set! timestamp (+ timestamp period))
-       (sync (alarm-evt timestamp))
-       (proc period)))
-   #:on-stop on-stop
-   #:on-dead on-dead
-   #:command handler))
+(define (simulator proc #:rate [rate 10])
+  (process (λ ()
+             (define period (/ 1000.0 rate))
+             (define timestamp (current-inexact-milliseconds))
+             (forever
+               (set! timestamp (+ timestamp period))
+               (sync (alarm-evt timestamp))
+               (proc period)))))
 
 (define (proxy π
                #:on-take [on-take values]
-               #:on-emit [on-emit values]
-               #:on-stop [on-stop void]
-               #:on-dead [on-dead void]
-               #:command [handler π])
-  (start (λ () (sync (thread (λ () (forever (give π (on-take (take))))))
-                     (thread (λ () (forever (emit (on-emit (recv π))))))
-                     (handle-evt π die)))
-         #:on-stop (λ () (on-stop) (stop π))
-         #:on-dead on-dead
-         #:command handler))
+               #:on-emit [on-emit values])
+  (start (process (λ ()
+                    (sync (thread (λ () (forever (give π (on-take (take))))))
+                          (thread (λ () (forever (emit (on-emit (recv π))))))
+                          (handle-evt π die))))
+         #:on-stop (λ () (stop π))))
 
-(define (pipe #:on-stop [on-stop void]
-              #:on-dead [on-dead void]
-              #:command [handler null]
-              . πs)
-  (start (λ () (sync (thread (λ () (forever (emit (foldl call (take) πs)))))
-                     (handle-evt (apply choice-evt πs) die)))
-         #:on-stop (λ () (on-stop) (for-each stop πs))
-         #:on-dead on-dead
-         #:command handler))
-
-(define (bridge π1 π2
-                #:on-stop [on-stop void]
-                #:on-dead [on-dead void]
-                #:command [handler null])
+(define (pipe . πs)
   (start
-   (λ ()
-     (sync
-      (evt-loop (λ _ (evt-series (λ _ (recv-evt π1)) (curry give-evt π2))))
-      (evt-loop (λ _ (evt-series (λ _ (recv-evt π2)) (curry give-evt π1))))
-      (handle-evt (choice-evt π1 π2) die)))
-   #:on-stop (λ () (on-stop) (stop π1) (stop π2))
-   #:on-dead on-dead
-   #:command handler))
+   (process (λ ()
+              (sync (thread (λ () (forever (emit (foldl call (take) πs)))))
+                    (handle-evt (apply choice-evt πs) die))))
+   #:on-stop (λ () (for-each stop πs))))
+
+(define (bridge π1 π2)
+  (start
+   (process
+    (λ ()
+      (sync
+       (evt-loop (λ _ (evt-series (λ _ (recv-evt π1)) (curry give-evt π2))))
+       (evt-loop (λ _ (evt-series (λ _ (recv-evt π2)) (curry give-evt π1))))
+       (handle-evt (choice-evt π1 π2) die))))
+   #:on-stop (λ () (stop π1) (stop π2))))
 
 (define (managed π
                  #:on-take-eof [on-take-eof stop]
-                 #:on-emit-eof [on-emit-eof stop]
-                 #:on-stop [on-stop void]
-                 #:on-dead [on-dead void]
-                 #:command [handler null])
+                 #:on-emit-eof [on-emit-eof stop])
   (define (loop v-in hook v-out)
     (define v (v-in))
     (if (eof-object? v) (hook π) (begin (v-out v) (loop v-in hook v-out))))
-  (start (λ () (sync (thread (λ () (loop take on-take-eof (λ (v) (give π v)))))
-                     (thread (λ () (loop (λ () (recv π)) on-emit-eof emit)))
-                     (handle-evt π die)))
-         #:on-stop (λ () (on-stop) (stop π))
-         #:on-dead on-dead
-         #:command handler))
+  (start
+   (process
+    (λ ()
+      (sync (thread (λ () (loop take on-take-eof (λ (v) (give π v)))))
+            (thread (λ () (loop (λ () (recv π)) on-emit-eof emit)))
+            (handle-evt π die))))
+   #:on-stop (λ () (stop π))))
 
 (define (shutdown π)
   (give π eof)
@@ -240,21 +157,22 @@
   (test-case
     "forever evaluates its body repeatedly."
     (define N 0)
-    (define π (start (λ () (forever (set! N (+ N 1)) (when (> N 100) (die))))))
+    (define π
+      (process (λ () (forever (set! N (+ N 1)) (when (> N 100) (die))))))
     (wait π)
     (check > N 100))
 
   (test-case
     "while evaluates its body for as long as expr evaluates to #t."
     (define count 0)
-    (define π (start (λ () (while (<= count 100) (set! count (add1 count))))))
+    (define π (process (λ () (while (<= count 100) (set! count (add1 count))))))
     (wait π)
     (check > count 100))
 
   (test-case
     "until evaluates its body for as long as expr evaluates to #f."
     (define count 0)
-    (define π (start (λ () (until (> count 100) (set! count (add1 count))))))
+    (define π (process (λ () (until (> count 100) (set! count (add1 count))))))
     (wait π)
     (check > count 100))
 
@@ -262,14 +180,14 @@
 
   (test-case
     "An evt-set is ready when every evt is ready."
-    (define πs (for/list ([_ 10]) (start (λ () (take)))))
+    (define πs (for/list ([_ 10]) (process (λ () (take)))))
     (define evt (apply evt-set πs))
     (for-each give πs)
     (check-false (not (sync evt))))
 
   (test-case
     "An evt-set is not ready until every evt is ready."
-    (define πs (for/list ([_ 10]) (start (λ () (take)))))
+    (define πs (for/list ([_ 10]) (process (λ () (take)))))
     (define evt (apply evt-set πs))
     (for ([π πs])
       (check-false (ormap (λ (π) (sync/timeout 0 π)) πs))
@@ -281,18 +199,18 @@
 
   (test-case
     "An evt-set syncs to the list of results of evts."
-    (define πs (for/list ([i 10]) (start (λ () (emit i)))))
+    (define πs (for/list ([i 10]) (process (λ () (emit i)))))
     (define evt (apply evt-set (map recv-evt πs)))
     (check equal? (sync evt) '(0 1 2 3 4 5 6 7 8 9)))
 
   (test-case
     "An evt-sequence is ready when all generated events are ready."
     (check-false
-     (not (sync (apply evt-sequence (make-list 10 (λ () (start void))))))))
+     (not (sync (apply evt-sequence (make-list 10 (λ () (process void))))))))
 
   (test-case
     "An evt-sequence is not ready until all generated events are ready."
-    (define πs (for/list ([_ 10]) (start emit)))
+    (define πs (for/list ([_ 10]) (process emit)))
     (define evt (apply evt-sequence (map (λ (π) (λ () π)) πs)))
     (for ([π πs])
       (check-false (sync/timeout 0 π))
@@ -304,23 +222,23 @@
     "An evt-sequence syncs on the results of make-evts in order."
     (define result null)
     (define (make-π i)
-      (λ () (start (λ () (set! result (cons i result))))))
+      (λ () (process (λ () (set! result (cons i result))))))
     (sync (apply evt-sequence (for/list ([i 10]) (make-π i))))
     (check equal? result '(9 8 7 6 5 4 3 2 1 0)))
 
   (test-case
     "An evt-sequence syncs to the same result as the last event generated."
-    (define πs (for/list ([_ 10]) (start void)))
+    (define πs (for/list ([_ 10]) (process void)))
     (check eq? (sync (apply evt-sequence (map (λ (π) (λ () π)) πs))) (last πs)))
 
   (test-case
     "An evt-series is ready when all generated events are ready."
     (check-false
-     (not (sync (apply evt-series (make-list 10 (λ _ (start void))))))))
+     (not (sync (apply evt-series (make-list 10 (λ _ (process void))))))))
 
   (test-case
     "An evt-series is not ready until all generated events are ready."
-    (define πs (for/list ([_ 10]) (start emit)))
+    (define πs (for/list ([_ 10]) (process emit)))
     (define evt (apply evt-series (map (λ (π) (λ _ π)) πs)))
     (for ([π πs])
       (check-false (sync/timeout 0 π))
@@ -332,13 +250,13 @@
     "An evt-series syncs on the results of make-evts in order."
     (define result null)
     (define (make-π i)
-      (λ _ (start (λ () (set! result (cons i result))))))
+      (λ _ (process (λ () (set! result (cons i result))))))
     (sync (apply evt-series (for/list ([i 10]) (make-π i))))
     (check equal? result '(9 8 7 6 5 4 3 2 1 0)))
 
   (test-case
     "An evt-series syncs to the same result as the last event generated."
-    (define πs (for/list ([_ 10]) (start void)))
+    (define πs (for/list ([_ 10]) (process void)))
     (check eq? (sync (apply evt-series (map (λ (π) (λ _ π)) πs))) (last πs)))
 
   (test-case
@@ -401,9 +319,10 @@
   (test-case
     "A socket stops snk and src when it stops."
     (define ch (make-async-channel))
-    (define π (socket
-               (sink deadlock #:on-stop (λ () (async-channel-put ch #t)))
-               (source deadlock #:on-stop (λ () (async-channel-put ch #t)))))
+    (define π
+      (socket
+       (start (sink deadlock) #:on-stop (λ () (async-channel-put ch #t)))
+       (start (source deadlock) #:on-stop (λ () (async-channel-put ch #t)))))
     (stop π)
     (check-true (async-channel-get ch))
     (check-true (async-channel-get ch)))
@@ -471,13 +390,13 @@
 
   (test-case
     "A proxy stops π when it stops."
-    (define π (start deadlock))
+    (define π (process deadlock))
     (stop (proxy π))
     (check-true (dead? π)))
 
   (test-case
     "A proxy dies when π dies."
-    (define π (start deadlock))
+    (define π (process deadlock))
     (define π* (proxy π))
     (kill π)
     (wait π*)
@@ -491,14 +410,14 @@
 
   (test-case
     "A pipe stops all πs when it stops."
-    (define πs (for/list ([_ 10]) (start deadlock)))
+    (define πs (for/list ([_ 10]) (process deadlock)))
     (stop (apply pipe πs))
     (for ([π πs]) (check-true (dead? π))))
 
   (test-case
     "A pipe dies when any π dies."
     (for ([i 3])
-      (define πs (for/list ([_ 3]) (start deadlock)))
+      (define πs (for/list ([_ 3]) (process deadlock)))
       (define p (apply pipe πs))
       (kill (list-ref πs i))
       (wait p)
@@ -506,29 +425,29 @@
 
   (test-case
     "A bridge forwards from π1 to π2, and vice versa."
-    (wait (bridge (start (λ () (emit 51) (check = (take) 53)))
-                  (start (λ () (emit 53) (check = (take) 51))))))
+    (wait (bridge (process (λ () (emit 51) (check = (take) 53)))
+                  (process (λ () (emit 53) (check = (take) 51))))))
 
   (test-case
     "A bridge stops π1 and π2 when it stops."
-    (define π1 (start deadlock))
-    (define π2 (start deadlock))
+    (define π1 (process deadlock))
+    (define π2 (process deadlock))
     (stop (bridge π1 π2))
     (check-true (dead? π1))
     (check-true (dead? π2)))
 
   (test-case
     "A bridge dies when π1 dies."
-    (define π1 (start deadlock))
-    (define π (bridge π1 (start deadlock)))
+    (define π1 (process deadlock))
+    (define π (bridge π1 (process deadlock)))
     (kill π1)
     (wait π)
     (check-true (dead? π)))
 
   (test-case
     "A bridge dies when π2 dies."
-    (define π2 (start deadlock))
-    (define π (bridge (start deadlock) π2))
+    (define π2 (process deadlock))
+    (define π (bridge (process deadlock) π2))
     (kill π2)
     (wait π)
     (check-true (dead? π)))
@@ -547,7 +466,7 @@
 
   (test-case
     "A managed process calls on-emit-eof when π emits eof."
-    (define π (managed (start (λ () (emit 59) (emit eof) (deadlock)))))
+    (define π (managed (process (λ () (emit 59) (emit eof) (deadlock)))))
     (check = (recv π) 59)
     (wait π)
     (check-true (dead? π)))
@@ -555,13 +474,13 @@
   (test-case
     "A managed process stops π when it stops."
     (define stopped #f)
-    (define π (start deadlock #:on-stop (λ () (set! stopped #t))))
-    (stop (managed (start deadlock #:on-stop (λ () (set! stopped #t)))))
+    (stop
+     (managed (start (process deadlock) #:on-stop (λ () (set! stopped #t)))))
     (check-true stopped))
 
   (test-case
     "A managed process dies when π dies."
-    (define π (start deadlock))
+    (define π (process deadlock))
     (define π* (managed π))
     (kill π)
     (wait π*)
@@ -569,6 +488,6 @@
 
   (test-case
     "shutdown gives eof to π and blocks until it dies."
-    (define π (start (λ () (check-true (eof-object? (take))))))
+    (define π (process (λ () (check-true (eof-object? (take))))))
     (shutdown π)
     (check-true (dead? π))))
