@@ -115,6 +115,32 @@
   ]
 }
 
+@defproc[(tcp-socket [in-port input-port?] [out-port output-port?]) process?]{
+  Returns a @racket[socket] for a TCP connection.
+
+  Commands:
+
+  @itemlist[
+    @item{@racket['address] -- returns the full address}
+    @item{@racket['local-address] -- returns the local part of the address}
+    @item{@racket['remote-address] -- returns the remote part of the address}
+  ]
+}
+
+@defproc[(tcp-client-socket [host string?] [port-no port-number?]) process?]{
+  Returns a @racket[tcp-socket] for a fresh TCP connection. See
+  @racket[tcp-connect] for details on arguments.
+}
+
+@defproc[(tcp-server-source [port-no listen-port-number?]
+                            [max-allow-wait exact-nonnegative-integer? 4]
+                            [reuse? any/c #t]
+                            [hostname (or/c string? #f) #f]
+                            ) process?]{
+  Creates a ``listening'' TCP server on the local machine. Emits a
+  @racket[tcp-socket] for each connection it accepts. See @racket[tcp-listen]
+  for details on arguments.
+}
 
 @subsection{Network}
 @subsubsection{TCP}
