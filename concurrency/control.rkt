@@ -21,6 +21,10 @@
   [sink (-> (-> any/c any) process?)]
   [source (-> (-> any/c) process?)]
   [socket (-> process? process? process?)]
+  [service (->* ((-> any/c any/c))
+                (#:on-drop (-> any/c any/c any)
+                 #:on-service-stop (-> any/c any/c any))
+                process?)]
   [simulator (->* ((-> real? any)) (#:rate real?) process?)]
   [proxy (->* (process?)
               (#:on-take (-> any/c any/c)
@@ -94,6 +98,11 @@
                      (cond [(equal? vs '(sink)) snk]
                            [(equal? vs '(source)) src]
                            [else unhandled]))))
+
+(define (service key-proc
+                 #:on-drop [on-drop void]
+                 #:on-service-stop [on-svc-stop void])
+  (void))
 
 (define (simulator proc #:rate [rate 10])
   (process (λ ()
