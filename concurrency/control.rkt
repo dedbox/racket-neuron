@@ -150,6 +150,9 @@
    #:on-stop (λ () (for-each stop πs))))
 
 (define (bridge π1 π2)
+  (define (cmd π vs)
+    (with-handlers ([unhandled-command? (λ _ unhandled)])
+      (apply π vs)))
   (start
    (process
     (λ ()
@@ -157,7 +160,10 @@
        (evt-loop (λ _ (evt-series (λ _ (recv-evt π1)) (curry give-evt π2))))
        (evt-loop (λ _ (evt-series (λ _ (recv-evt π2)) (curry give-evt π1))))
        (handle-evt (choice-evt π1 π2) die))))
-   #:on-stop (λ () (stop π1) (stop π2))))
+   #:on-stop (λ () (stop π1) (stop π2))
+   #:command (λ vs
+               (define result (cmd π1 vs))
+               (if (equal? result unhandled) (cmd π2 vs) result))))
 
 (define (managed π
                  #:on-take-eof [on-take-eof stop]
@@ -535,6 +541,18 @@
     (kill π2)
     (wait π)
     (check-true (dead? π)))
+
+  (test-case
+    "A bridge forwards commands to π1 first."
+    (define π (bridge (start (process deadlock) #:command add1)
+                      (start (process deadlock))))
+    (check = 2 (π 1)))
+
+  (test-case
+    "A bridge forwards commands to π2 if π1 fails."
+    (define π (bridge (start (process deadlock))
+                      (start (process deadlock) #:command sub1)))
+    (check = 0 (π 1)))
 
   (test-case
     "A managed process forwards non-eof values to and from π."

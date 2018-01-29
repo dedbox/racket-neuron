@@ -321,6 +321,17 @@ Processes are created explicitly by the @racket[process] function. Use
   Returns a @deftech{bridge} process. Forwards from @racket[π1] to
   @racket[π2], and vice versa. Stops @racket[π1] and @racket[π2] when it
   stops. Dies when @racket[π1] or @racket[π2] die.
+
+  Commands:
+
+  @itemlist[
+    @item{@racket['(process 1)] -- returns @racket[π1]}
+    @item{@racket['(process 2)] -- returns @racket[π2]}
+  ]
+
+  A bridge will attempt to forward unrecognized commands---first to
+  @racket[π1], then to @racket[π2]---before raising
+  @racket[unhandled-command].
 }
 
 @defproc[(managed [π process?]
