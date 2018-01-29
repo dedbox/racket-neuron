@@ -49,15 +49,6 @@
 (define (port-socket amt in-port out-port)
   (socket (port-sink out-port) (port-source amt in-port)))
 
-(define (file-sink path
-                   #:mode [mode-flag 'binary]
-                   #:exists [exists-flag 'error])
-  (port-sink (open-output-file path #:mode mode-flag #:exists exists-flag)))
-
-(define (file-source path amt
-                     #:mode [mode-flag 'binary])
-  (port-source amt (open-input-file path #:mode mode-flag)))
-
 (define (byte-sink)
   (define out-port (open-output-bytes))
   (define (emit-next-bytes . _)
@@ -73,6 +64,15 @@
   (start
    (managed (sink (curryr display out-port)) #:on-take-eof emit-next-string)
    #:on-stop emit-next-string))
+
+(define (file-sink path
+                   #:mode [mode-flag 'binary]
+                   #:exists [exists-flag 'error])
+  (port-sink (open-output-file path #:mode mode-flag #:exists exists-flag)))
+
+(define (file-source path amt
+                     #:mode [mode-flag 'binary])
+  (port-source amt (open-input-file path #:mode mode-flag)))
 
 (define (directory-source [path (current-directory)])
   (process (λ () (for-each emit (directory-list path)))))
