@@ -13,6 +13,7 @@
  (contract-out
   [parser/c contract?]
   [printer/c contract?]
+  [flushed (-> printer/c printer/c)]
   [decoder (-> parser/c input-port? process?)]
   [encoder (-> printer/c output-port? process?)]
   [codec (-> parser/c printer/c input-port? output-port? process?)]
@@ -38,6 +39,11 @@
 
 (define parser/c (-> input-port? any))
 (define printer/c (-> any/c output-port? any))
+
+(define (flushed prn)
+  (λ (v out-port)
+    (prn v out-port)
+    (flush-output out-port)))
 
 (define (decoder prs in-port)
   (start
@@ -90,6 +96,8 @@
            (define name-encoder make-enc)
            (define name-codec make-cdc)))]))
 
-(define-codec line read-line displayln)
-(define-codec sexp read writeln)
-(define-codec json read-json (λ (v out) (write-json v out) (newline out)))
+(define-codec line read-line (flushed displayln))
+(define-codec sexp read (flushed writeln))
+(define-codec json
+  read-json
+  (λ (v out) (write-json v out) (newline out) (flush-output out)))

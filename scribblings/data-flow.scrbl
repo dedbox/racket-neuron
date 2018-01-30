@@ -131,6 +131,11 @@ A @deftech{codec type} is ...
   Use this contract to indicate that some function is a @tech{printer}.
 }
 
+@defproc[(flushed [prn printer/c]) printer/c]{
+  Returns a @tech{printer} that applies @racket[prn] and then flushes the
+  @racket-tech{output port}.
+}
+
 @defproc[(decoder [prs parser/c]
                   [in-port input-port?]
                   ) process?]{
