@@ -115,37 +115,6 @@
   ]
 }
 
-@defproc[(tcp-socket [in-port input-port?] [out-port output-port?]) process?]{
-  Returns a @racket[socket] for a TCP connection.
-
-  Commands:
-
-  @itemlist[
-    @item{@racket['address] -- returns the full address}
-    @item{@racket['local-address] -- returns the local part of the address}
-    @item{@racket['remote-address] -- returns the remote part of the address}
-  ]
-}
-
-@defproc[(tcp-client-socket [host string?] [port-no port-number?]) process?]{
-  Returns a @racket[tcp-socket] for a fresh TCP connection. See
-  @racket[tcp-connect] for details on arguments.
-}
-
-@defproc[(tcp-server-source [port-no listen-port-number?]
-                            [max-allow-wait exact-nonnegative-integer? 4]
-                            [reuse? any/c #t]
-                            [hostname (or/c string? #f) #f]
-                            ) process?]{
-  Creates a ``listening'' TCP server on the local machine. Emits a
-  @racket[tcp-socket] for each connection it accepts. See @racket[tcp-listen]
-  for details on arguments.
-}
-
-@subsection{Network}
-@subsubsection{TCP}
-@subsubsection{UDP}
-
 @section{Decoding and Encoding}
 
 A @deftech{parser} is ...
@@ -332,5 +301,82 @@ A @deftech{codec type} is ...
     (recv cdc)
     (give cdc '(98 #hasheq([zy . 76])))
     (get-output-string ((cdc 'encoder) 'output-port))
+  ]
+}
+
+@section{Networking}
+
+@defproc[(tcp-codec [make-codec (-> input-port? output-port? process?)]
+                    [in-port input-port?]
+                    [out-port output-port?]
+                    ) process?]{
+  Returns the @racket[codec] created by applying @racket[make-codec] to
+  @racket[in-port] and @racket[out-port].
+
+  Additional commands:
+
+  @itemlist[
+    @item{@racket['address] -- returns the full address of the connection}
+    @item{@racket['local-address] -- returns the local address}
+    @item{@racket['remote-address] -- returns the remote address}
+  ]
+}
+
+@defproc[(tcp-client [make-codec (-> input-port? output-port? process?)]
+                     [hostname string?]
+                     [port-no port-number?]
+                     [local-hostname (or/c string? #f) #f]
+                     [local-port-no (or/c port-number? #f) #f]
+                     ) process?]{
+  Establishes a TCP connection to ``@racket[hostname]:@racket[port-no].''
+  Returns a @racket[tcp-codec] created by @racket[make-codec].
+
+  See @racket[tcp-connect] for argument details.
+}
+
+@defproc[(tcp-source [make-codec (-> input-port? output-port? process?)]
+                     [port-no listen-port-number?]
+                     [max-allow-wait exact-nonnegative-integer? 4]
+                     [reuse? any/c #f]
+                     [hostname (or/c string? #f) #f]
+                     ) process?]{
+  Creates a ``listening'' TCP server on the local machine. Emits a
+  @racket[tcp-codec] for each TCP connection accepted.
+
+  See @racket[tcp-listen] for argument details.
+}
+
+@defproc[(tcp-server [proc (-> any/c any/c)]
+                     [make-codec (-> input-port? output-port? process?)]
+                     [port-no listen-port-number?]
+                     [max-allow-wait exact-nonnegative-integer? 4]
+                     [reuse? any/c #f]
+                     [hostname (or/c string? #f) #f]
+                     ) process?]{
+  Creates a ``listening'' TCP server on the local machine, and a
+  @racket[server] on @racket[proc]. Emits a
+  @racket[tcp-codec]--@racket[server] @racket[bridge] for each TCP connection
+  accepted.
+
+  See @racket[tcp-listen] for argument details.
+}
+
+@defproc[(tcp-service [proc (-> any/c any/c)]
+                      [make-codec (-> input-port? output-port? process?)]
+                      [port-no listen-port-number?]
+                      [max-allow-wait exact-nonnegative-integer? 4]
+                      [reuse? any/c #f]
+                      [hostname (or/c string? #f) #f]
+                      ) process?]{
+  Creates a @racket[tcp-server] on @racket[proc] and @racket[make-codec]. Adds
+  connections emitted by the @racket[tcp-server] to a @racket[service] keyed
+  by full address.
+
+  Commands:
+
+  @itemlist[
+    @item{@racket['peers] -- @racket[service] command @racket['keys]}
+    @item{@racket[`(drop ,addr)] -- @racket[service] command @racket[`(drop
+      ,addr)]}
   ]
 }

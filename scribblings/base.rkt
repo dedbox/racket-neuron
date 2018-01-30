@@ -14,7 +14,8 @@
  neuron
  json
  racket/base
- racket/contract)
+ racket/contract
+ racket/tcp)
 
 (provide (all-defined-out))
 
