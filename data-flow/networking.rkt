@@ -35,7 +35,7 @@
                     process?)]))
 
 (define (tcp-codec make-codec in-port out-port)
-  (define addr (call-with-values (λ () (tcp-addresses in-port #t)) list))
+  (define addr (apply-values list (tcp-addresses in-port #t)))
   (start (make-codec in-port out-port)
          #:command (λ vs
                      (cond [(equal? vs '(address)) addr]
@@ -55,9 +55,13 @@
                     [reuse? #f]
                     [hostname #f])
   (define listener (tcp-listen port-no max-allow-wait reuse? hostname))
+  (define addr (apply-values list (tcp-addresses listener #t)))
   (start
    (source (λ () (call-with-values (λ () (tcp-accept listener)) make-codec)))
-   #:on-dead (λ () (tcp-close listener))))
+   #:on-dead (λ () (tcp-close listener))
+   #:command (λ vs
+               (cond [(equal? vs '(listen-address)) addr]
+                     [else unhandled]))))
 
 (define (tcp-server proc make-codec port-no
                     [max-allow-wait 4]
@@ -105,9 +109,24 @@
                                    (tcp-accept listener)))
          (check-true tested?)
          (emit))))
-    (define port-no (recv π))
-    (define-values (in-port out-port) (tcp-connect "127.0.0.1" port-no))
+    (tcp-connect "127.0.0.1" (recv π))
     (recv π))
+
+  (test-case
+    "A tcp-codec exchanges values over a TCP connection."
+    (define π
+      (process
+       (λ ()
+         (define listener (tcp-listen 0 4 #t #f))
+         (emit (cadr (apply-values list (tcp-addresses listener #t))))
+         (define srv (apply-values (curry tcp-codec line-codec)
+                                   (tcp-accept listener)))
+         (check equal? (recv srv) "123")
+         (give srv 'abc))))
+    (define cli (apply-values (curry tcp-codec line-codec)
+                              (tcp-connect "127.0.0.1" (recv π))))
+    (give cli 123)
+    (check equal? (recv cli) "abc"))
 
   (test-case
     "tcp-codec command 'address returns the full address."
@@ -119,16 +138,17 @@
          (define cdc (apply-values (curry tcp-codec sexp-codec)
                                    (tcp-accept listener)))
          (emit (cdc 'address)))))
-    (define port-no (recv π))
-    (define-values (in-port out-port) (tcp-connect "127.0.0.1" port-no))
-    (define srv-addr (recv π))
+    (define-values (in-port out-port) (tcp-connect "127.0.0.1" (recv π)))
     (define-values (cli-local-host
                     cli-local-port
                     cli-remote-host
                     cli-remote-port)
       (tcp-addresses in-port #t))
-    (check equal? srv-addr
-           (list cli-remote-host cli-remote-port cli-local-host cli-local-port)))
+    (check equal? (recv π)
+           (list cli-remote-host
+                 cli-remote-port
+                 cli-local-host
+                 cli-local-port)))
 
   (test-case
     "tcp-codec command 'local-address returns the local address."
@@ -140,10 +160,9 @@
          (define cdc (apply-values (curry tcp-codec sexp-codec)
                                    (tcp-accept listener)))
          (emit (cdc 'local-address)))))
-    (define port-no (recv π))
-    (define-values (in-port out-port) (tcp-connect "127.0.0.1" port-no))
-    (check equal? (recv π) (apply-values (compose (curryr list:drop 2) list)
-                                         (tcp-addresses in-port #t))))
+    (define-values (in-port out-port) (tcp-connect "127.0.0.1" (recv π)))
+    (check equal? (recv π)
+           (apply-values (λ vs (list:drop vs 2)) (tcp-addresses in-port #t))))
 
   (test-case
     "tcp-codec command 'remote-address returns the remote address."
@@ -155,7 +174,70 @@
          (define cdc (apply-values (curry tcp-codec sexp-codec)
                                    (tcp-accept listener)))
          (emit (cdc 'remote-address)))))
-    (define port-no (recv π))
-    (define-values (in-port out-port) (tcp-connect "127.0.0.1" port-no))
-    (check equal? (recv π) (apply-values (compose (curryr list:take 2) list)
-                                         (tcp-addresses in-port #t)))))
+    (define-values (in-port out-port) (tcp-connect "127.0.0.1" (recv π)))
+    (check equal? (recv π)
+           (apply-values (λ vs (list:take vs 2)) (tcp-addresses in-port #t))))
+
+  (test-case
+    "A tcp-client connects to ``hostname:port-no''."
+    (define π
+      (process
+       (λ ()
+         (define listener (tcp-listen 0 4 #t #f))
+         (emit (cadr (apply-values list (tcp-addresses listener #t))))
+         (define-values (in-port out-port) (tcp-accept listener))
+         (check equal? (read-line in-port) "123")
+         (displayln 'abc out-port)
+         (flush-output out-port))))
+    (define cli (tcp-client line-codec "localhost" (recv π)))
+    (give cli 123)
+    (check equal? (recv cli) "abc"))
+
+  (test-case
+    "A tcp-client calls make-codec."
+    (define π
+      (process
+       (λ ()
+         (define listener (tcp-listen 0 4 #t #f))
+         (emit (cadr (apply-values list (tcp-addresses listener #t))))
+         (define-values (in-port out-port) (tcp-accept listener))
+         (emit))))
+    (define tested? #f)
+    (define cli (tcp-client (λ (in-port out-port)
+                              (set! tested? #t)
+                              (check-true (input-port? in-port))
+                              (check-true (output-port? out-port)))
+                            "localhost"
+                            (recv π)))
+    (recv π)
+    (check-true tested?))
+
+  (test-case
+    "A tcp-client returns a tcp-codec."
+    (define π
+      (process
+       (λ ()
+         (define listener (tcp-listen 0 4 #t #f))
+         (emit (cadr (apply-values list (tcp-addresses listener #t))))
+         (define-values (in-port out-port) (tcp-accept listener))
+         (check equal? (read-line in-port) "123")
+         (displayln 'abc out-port)
+         (flush-output out-port))))
+    (define cli (tcp-client sexp-codec "localhost" (recv π)))
+    (give cli 123)
+    (check equal? (recv cli) 'abc))
+
+  (test-case
+    "A tcp-source emits a tcp-codec for each accepted connection."
+    (define src (tcp-source sexp-codec 0 4 #t #f))
+    (define cli
+      (tcp-client sexp-codec "localhost" (cadr (src 'listen-address))))
+    (check-true (process? (recv src))))
+
+  (test-case
+    "tcp-source command 'listen-address returns the address of the listener."
+    (define src (tcp-source sexp-codec 3600 4 #t #f))
+    (check equal? (cadr (src 'listen-address)) 3600)
+    (kill src))
+
+  )
