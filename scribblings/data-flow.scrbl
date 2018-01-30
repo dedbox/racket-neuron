@@ -333,7 +333,7 @@ A @deftech{codec type} is ...
                      [local-hostname (or/c string? #f) #f]
                      [local-port-no (or/c port-number? #f) #f]
                      ) process?]{
-  Establishes a TCP connection to ``@racket[hostname]:@racket[port-no].''
+  Establishes a TCP connection to ``@racket[hostname]:@racket[port-no]''.
   Returns a @racket[tcp-codec] created by @racket[make-codec].
 
   See @racket[tcp-connect] for argument details.
@@ -349,6 +349,12 @@ A @deftech{codec type} is ...
   @racket[tcp-codec] for each TCP connection accepted.
 
   See @racket[tcp-listen] for argument details.
+
+  Commands:
+
+  @itemlist[
+    @item{@racket['listen-address] -- returns the address of the listener}
+  ]
 }
 
 @defproc[(tcp-server [proc (-> any/c any/c)]
