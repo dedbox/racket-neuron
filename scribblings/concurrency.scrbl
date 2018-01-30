@@ -210,6 +210,10 @@ Processes are created explicitly by the @racket[process] function. Use
   @racket[#f].
 }
 
+@defform[(apply-values proc expr)]{
+  Evaluates @racket[expr] and applies @racket[proc] to the values produced.
+}
+
 @defproc[(evt-set [evt evt?] ...) evt?]{
   Returns a fresh @racket-tech{synchronizable event} that becomes
   @racket-tech{ready for synchronization} when all @racket[evt]s have become

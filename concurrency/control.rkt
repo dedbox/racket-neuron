@@ -8,7 +8,7 @@
          (only-in racket/list flatten make-list last))
 
 (provide
- forever while until
+ forever while until apply-values
  (contract-out
   [evt-set (-> evt? ... evt?)]
   [evt-sequence (-> (-> evt?) (-> evt?) ... evt?)]
@@ -48,6 +48,9 @@
 
 (define-syntax-rule (until expr body ...)
   (let loop () (unless expr body ... (loop))))
+
+(define-syntax-rule (apply-values proc expr)
+  (call-with-values (λ () expr) proc))
 
 ;; Events
 
