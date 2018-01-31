@@ -56,7 +56,8 @@
   (define listener (tcp-listen port-no max-allow-wait reuse? hostname))
   (define addr (apply-values list (tcp-addresses listener #t)))
   (start
-   (source (λ () (apply-values make-codec (tcp-accept listener))))
+   (source
+    (λ () (apply-values (curry tcp-codec make-codec) (tcp-accept listener))))
    #:on-dead (λ () (tcp-close listener))
    #:command (λ vs
                (cond [(equal? vs '(listen-address)) addr]
@@ -68,7 +69,9 @@
                     [hostname #f])
   (define src (tcp-source make-codec port-no max-allow-wait reuse? hostname))
   (start (source (λ () (emit (bridge (recv src) (server proc)))))
-         #:on-dead (λ () (kill src))))
+         #:on-stop (λ () (stop src))
+         #:on-dead (λ () (kill src))
+         #:command (λ vs (apply src vs))))
 
 (define (tcp-service proc make-codec port-no
                      [max-allow-wait 4]
@@ -231,12 +234,28 @@
     (define src (tcp-source sexp-codec 0 4 #t #f))
     (define cli
       (tcp-client sexp-codec "localhost" (cadr (src 'listen-address))))
-    (check-true (process? (recv src))))
+    (define π (recv src))
+    (check-true (process? π))
+    (check-true (process? (π 'decoder)))
+    (check-true (process? (π 'encoder))))
 
   (test-case
     "tcp-source command 'listen-address returns the address of the listener."
     (define src (tcp-source sexp-codec 3600 4 #t #f))
     (check equal? (cadr (src 'listen-address)) 3600)
     (kill src))
+
+  (test-case
+    "A tcp-server emits a tcp-codec--server bridge."
+    (define srv (tcp-server add1 sexp-codec 0 4 #t #f))
+    (define cli
+      (tcp-client sexp-codec "localhost" (cadr (srv 'listen-address))))
+    (define π (recv srv))
+    (check-true (process? π))
+    (check-true (process? (π 'decoder)))
+    (check-true (process? (π 'encoder)))
+    (check equal? (π 'local-address) (cli 'remote-address))
+    (check equal? (π 'remote-address) (cli 'local-address))
+    (for ([i 10]) (check = (call cli i) (+ i 1))))
 
   )
