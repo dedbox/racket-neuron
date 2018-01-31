@@ -46,9 +46,8 @@
 (define (tcp-client make-codec hostname port-no
                     [local-hostname #f]
                     [local-port-no #f])
-  (call-with-values
-      (λ () (tcp-connect hostname port-no local-hostname local-port-no))
-    (curry tcp-codec make-codec)))
+  (apply-values (curry tcp-codec make-codec)
+                (tcp-connect hostname port-no local-hostname local-port-no)))
 
 (define (tcp-source make-codec port-no
                     [max-allow-wait 4]
@@ -57,7 +56,7 @@
   (define listener (tcp-listen port-no max-allow-wait reuse? hostname))
   (define addr (apply-values list (tcp-addresses listener #t)))
   (start
-   (source (λ () (call-with-values (λ () (tcp-accept listener)) make-codec)))
+   (source (λ () (apply-values make-codec (tcp-accept listener))))
    #:on-dead (λ () (tcp-close listener))
    #:command (λ vs
                (cond [(equal? vs '(listen-address)) addr]
