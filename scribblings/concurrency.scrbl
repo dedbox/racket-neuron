@@ -295,8 +295,9 @@ Processes are created explicitly by the @racket[process] function. Use
 
   @itemlist[
     @item{@racket['keys] -- returns a list of keys in use}
-    @item{@racket[`(drop ,key)] -- drops @racket[key]; returns @racket[#t] if
-      key was in use, @racket[#f] otherwise.}
+    @item{@racket['values] -- returns a list of values in use}
+    @item{@racket['drop key] -- drops @racket[key]; returns @racket[#t] if key
+      was in use, @racket[#f] otherwise.}
   ]
 }
 
@@ -329,8 +330,8 @@ Processes are created explicitly by the @racket[process] function. Use
   Commands:
 
   @itemlist[
-    @item{@racket['(process 1)] -- returns @racket[π1]}
-    @item{@racket['(process 2)] -- returns @racket[π2]}
+    @item{@racket['process 1] -- returns @racket[π1]}
+    @item{@racket['process 2] -- returns @racket[π2]}
   ]
 
   A bridge will attempt to forward unrecognized commands---first to
