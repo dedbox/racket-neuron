@@ -37,7 +37,7 @@
   [json-encoder (-> output-port? process?)]
   [json-codec (-> input-port? output-port? process?)]))
 
-(define parser/c (-> input-port? any))
+(define parser/c (-> input-port? any/c))
 (define printer/c (-> any/c output-port? any))
 
 (define (flushed prn)
