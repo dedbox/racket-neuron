@@ -182,4 +182,33 @@
     (define out-port (open-output-string))
     (check equal? ((encoder write out-port) 'output-port) out-port))
 
-  )
+  (test-case
+    "A codec is a socket."
+    (define cdc (codec read write (open-input-string "") (open-output-string)))
+    (check-pred process? cdc)
+    (check-pred process? (cdc 'sink))
+    (check-pred process? (cdc 'source)))
+
+  (test-case
+    "A codec source is a decoder on prs and in-port."
+    (define cdc (codec read write (open-input-string "") (open-output-string)))
+    (check-pred process? (cdc 'source))
+    (check-pred procedure? ((cdc 'source) 'parser))
+    (check-pred input-port? ((cdc 'source) 'input-port)))
+
+  (test-case
+    "A codec sink is an encoder on prn and out-port."
+    (define cdc (codec read write (open-input-string "") (open-output-string)))
+    (check-pred process? (cdc 'sink))
+    (check-pred procedure? ((cdc 'sink) 'printer))
+    (check-pred output-port? ((cdc 'sink) 'output-port)))
+
+  (test-case
+    "codec command 'decoder returns a decoder."
+    (define cdc (codec read write (open-input-string "") (open-output-string)))
+    (check equal? (cdc 'decoder) (cdc 'source)))
+
+  (test-case
+    "codec command 'encoder returns an encoder."
+    (define cdc (codec read write (open-input-string "") (open-output-string)))
+    (check equal? (cdc 'encoder) (cdc 'sink))))
