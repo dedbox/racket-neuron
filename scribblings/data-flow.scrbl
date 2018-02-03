@@ -188,8 +188,8 @@ A @deftech{codec type} is ...
                 [in-port input-port?]
                 [out-port output-port?]
                 ) process?]{
-  Returns a @deftech{codec} @tech{socket} process with source @racket[(encoder
-  prn out-port)] and sink @racket[(decoder prs in-port)].
+  Returns a @deftech{codec} @tech{socket} process with source @racket[(decoder
+  prs in-port)] and sink @racket[(encoder prn out-port)].
 
   Commands:
 
