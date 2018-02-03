@@ -121,6 +121,7 @@
          #:on-stop (λ () (hash-for-each pairs on-svc-stop))
          #:command (λ vs
                      (cond [(equal? vs '(keys)) (hash-keys pairs)]
+                           [(equal? vs '(values)) (hash-values pairs)]
                            [(or (null? vs)
                                 (null? (cdr vs))
                                 (not (null? (cddr vs)))) unhandled]
