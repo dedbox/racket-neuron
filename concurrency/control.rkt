@@ -144,7 +144,8 @@
                     (sync (thread (λ () (forever (give π (on-take (take))))))
                           (thread (λ () (forever (emit (on-emit (recv π))))))
                           (handle-evt π die))))
-         #:on-stop (λ () (stop π))))
+         #:on-stop (λ () (stop π))
+         #:command (λ vs (apply π vs))))
 
 (define (pipe . πs)
   (start
