@@ -107,8 +107,8 @@
     [(start π) π]))
 
 (define (stop π)
-  (break-thread (process-thread π) 'hang-up)
-  (wait π))
+  (sync (thread (λ () (break-thread (process-thread π) 'hang-up) (sync π))))
+  (void))
 
 (define (kill π)
   (break-thread (process-thread π) 'terminate)
