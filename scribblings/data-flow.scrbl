@@ -124,11 +124,13 @@ A @deftech{printer} is ...
 A @deftech{codec type} is ...
 
 @defthing[parser/c contract?]{
-  Use this contract to indicate that some function is a @tech{parser}.
+  Use this @racket-tech{function contract} to indicate that a function is a
+  @tech{parser}. Equivalent to @racket[(-> output-port? any/c)].
 }
 
 @defthing[printer/c contract?]{
-  Use this contract to indicate that some function is a @tech{printer}.
+  Use this @racket-tech{function contract} to indicate that a function is a
+  @tech{printer}. Equivalent to @racket[(-> any/c input-port? any)].
 }
 
 @defproc[(flushed [prn printer/c]) printer/c]{
