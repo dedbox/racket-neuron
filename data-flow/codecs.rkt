@@ -107,3 +107,79 @@
 (define-codec json
   read-json
   (λ (v out) (write-json v out) (newline out) (flush-output out)))
+
+(module+ test
+  (require rackunit)
+
+  (test-case
+    "A decoder applies prs to in-port and emits the result."
+    (check = (recv (decoder read (open-input-string "123"))) 123))
+
+  (test-case
+    "A decoder stops when prs returns eof."
+    (define dec (decoder read (open-input-string "123")))
+    (check = (recv dec) 123)
+    (check-pred eof-object? (recv dec))
+    (check-pred dead? dec))
+
+  (test-case
+    "A decoder closes in-port when it stops."
+    (define dec (decoder read (open-input-string "1 2 3")))
+    (stop dec)
+    (check-pred port-closed? (dec 'input-port)))
+
+  (test-case
+    "A decoder dies when in-port closes."
+    (define dec (decoder read (open-input-string "")))
+    (sync dec)
+    (check-pred port-closed? (dec 'input-port))
+    (check-pred dead? dec))
+
+  (test-case
+    "decoder command 'parser returns prs."
+    (check equal? ((decoder read (open-input-string "")) 'parser) read))
+
+  (test-case
+    "decoder command 'input-port returns in-port."
+    (define in-port (open-input-string ""))
+    (check equal? ((decoder read in-port) 'input-port) in-port))
+
+  (test-case
+    "An encoder takes a value and applies prn to it and out-port."
+    (define done (make-semaphore 0))
+    (define enc (encoder (λ (v out) (write v out) (semaphore-post done))
+                         (open-output-string)))
+    (give enc 123)
+    (semaphore-wait done)
+    (check equal? (get-output-string (enc 'output-port)) "123"))
+
+  (test-case
+    "An encoder stops when given eof."
+    (define enc (encoder write (open-output-string)))
+    (give enc eof)
+    (sync enc)
+    (check-pred dead? enc))
+
+  (test-case
+    "An encoder closes out-port when it stops."
+    (define enc (encoder write (open-output-string)))
+    (stop enc)
+    (check-pred port-closed? (enc 'output-port)))
+
+  (test-case
+    "An encoder dies when out-port closes."
+    (define enc (encoder write (open-output-string)))
+    (close-output-port (enc 'output-port))
+    (sync enc)
+    (check-pred dead? enc))
+
+  (test-case
+    "encoder command 'printer returns prn."
+    (check equal? ((encoder write (open-output-string)) 'printer) write))
+
+  (test-case
+    "encoder command 'output-port returns out-port."
+    (define out-port (open-output-string))
+    (check equal? ((encoder write out-port) 'output-port) out-port))
+
+  )
