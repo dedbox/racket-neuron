@@ -47,7 +47,10 @@
 
 (define (decoder prs in-port)
   (start
-   (managed (source (λ () (with-handlers ([exn:fail? die]) (prs in-port)))))
+   (managed (process (λ () (sync (thread (λ ()
+                                           (with-handlers ([exn:fail? void])
+                                             (forever (emit (prs in-port))))))
+                                 (handle-evt (port-closed-evt in-port) die)))))
    #:on-stop (λ () (close-input-port in-port))
    #:command (λ vs
                (cond [(equal? vs '(parser)) prs]
@@ -56,7 +59,10 @@
 
 (define (encoder prn out-port)
   (start
-   (managed (sink (λ (v) (with-handlers ([exn:fail? die]) (prn v out-port)))))
+   (managed (process (λ () (sync (thread (λ ()
+                                           (with-handlers ([exn:fail? void])
+                                             (forever (prn (take) out-port)))))
+                                 (handle-evt (port-closed-evt out-port) die)))))
    #:on-stop (λ () (close-output-port out-port))
    #:command (λ vs
                (cond [(equal? vs '(printer)) prn]
