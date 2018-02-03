@@ -372,24 +372,32 @@ A @deftech{codec type} is ...
   accepted.
 
   See @racket[tcp-listen] for argument details.
+
+  Commands:
+
+  @itemlist[
+    @item{@racket['listen-address] -- returns the address of the listener}
+  ]
 }
 
-@defproc[(tcp-service [proc (-> any/c any/c)]
+@defproc[(tcp-service [make-server (-> any/c process?)]
                       [make-codec (-> input-port? output-port? process?)]
                       [port-no listen-port-number?]
                       [max-allow-wait exact-nonnegative-integer? 4]
                       [reuse? any/c #f]
                       [hostname (or/c string? #f) #f]
                       ) process?]{
-  Creates a @racket[tcp-server] on @racket[proc] and @racket[make-codec]. Adds
-  connections emitted by the @racket[tcp-server] to a @racket[service] keyed
-  by full address.
+  Creates a @racket[tcp-server] with @racket[make-proc] and
+  @racket[make-codec]. Adds connections emitted by the @racket[tcp-server] to
+  a @racket[service] keyed by full address. Closes all TCP connections when it
+  stops.
 
   Commands:
 
   @itemlist[
+    @item{@racket['listen-address] -- @racket[tcp-server] command
+      @racket['listen-address]}
     @item{@racket['peers] -- @racket[service] command @racket['keys]}
-    @item{@racket[`(drop ,addr)] -- @racket[service] command @racket[`(drop
-      ,addr)]}
+     @item{@racket['drop addr] -- @racket[service] command @racket['drop addr]}
   ]
 }
