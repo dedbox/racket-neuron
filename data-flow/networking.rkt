@@ -36,7 +36,14 @@
 
 (define (tcp-codec make-codec in-port out-port)
   (define addr (apply-values list (tcp-addresses in-port #t)))
-  (start (make-codec in-port out-port)
+  (define cdc (make-codec in-port out-port))
+  (start (process (λ ()
+                    (sync (thread (λ () (forever (give cdc (take)))))
+                          (thread (λ () (forever (emit (recv cdc)))))
+                          (cdc 'decoder)
+                          (cdc 'encoder))))
+         #:on-stop (λ () (stop cdc))
+         #:on-dead (λ () (kill cdc))
          #:command (λ vs
                      (cond [(equal? vs '(address)) addr]
                            [(equal? vs '(local-address)) (list:take addr 2)]
@@ -129,6 +136,28 @@
                               (tcp-connect "127.0.0.1" (recv π))))
     (give cli 123)
     (check equal? (recv cli) "abc"))
+
+  (test-case
+    "A tcp-codec dies when either side of the connection closes."
+    (define π
+      (process
+       (λ ()
+         (define listener (tcp-listen 0 4 #t #f))
+         (emit (apply-values (λ vs (cadr vs)) (tcp-addresses listener #t)))
+         (define cdc (apply-values (curry tcp-codec sexp-codec)
+                                   (tcp-accept listener)))
+         (emit (cdc 'address)))))
+    (define port-no (recv π))
+    (define cli1 (apply-values (curry tcp-codec sexp-codec)
+                               (tcp-connect "127.0.0.1" port-no)))
+    (close-input-port ((cli1 'decoder) 'input-port))
+    (sync cli1)
+    (check-pred dead? cli1)
+    (define cli2 (apply-values (curry tcp-codec sexp-codec)
+                               (tcp-connect "127.0.0.1" port-no)))
+    (close-output-port ((cli2 'encoder) 'output-port))
+    (sync cli2)
+    (check-pred dead? cli2))
 
   (test-case
     "tcp-codec command 'address returns the full address."

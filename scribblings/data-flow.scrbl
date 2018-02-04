@@ -317,8 +317,9 @@ A @deftech{codec type} is ...
                     [in-port input-port?]
                     [out-port output-port?]
                     ) process?]{
-  Returns the @racket[codec] created by applying @racket[make-codec] to
-  @racket[in-port] and @racket[out-port].
+  Returns a @racket[codec] created by applying @racket[make-codec] to
+  @racket[in-port] and @racket[out-port]. Dies when either side of the
+  connection closes.
 
   Additional commands:
 
