@@ -67,31 +67,39 @@
 (define current-command (make-parameter null))
 
 (define (process thunk)
-  (define raised (box #f))
-  (define ready-ch (make-channel))
-  (define (process)
-    (let/ec dead-cont
-      (let/ec stop-cont
+  (define on-stop-hook (flatten (current-on-stop)))
+  (define on-dead-hook (flatten (current-on-dead)))
+  (define command-hook (flatten (current-command)))
+  (parameterize ([current-on-stop null]
+                 [current-on-dead null]
+                 [current-command null])
+    (define raised (box #f))
+    (define ready-ch (make-channel))
+    (define (process)
+      (let/ec dead-cont
+        (let/ec stop-cont
+          (parameterize-break #f
+            (channel-put ready-ch dead-cont)
+            (channel-put ready-ch stop-cont)
+            (parameterize ([current-process (channel-get ready-ch)])
+              (with-handlers ([exn:break:hang-up? quit]
+                              [exn:break:terminate? die]
+                              [(λ _ #t) (λ (e) (set-box! raised (list e)) (die))])
+                (parameterize-break #t
+                  (thunk))))))
         (parameterize-break #f
-          (channel-put ready-ch dead-cont)
-          (channel-put ready-ch stop-cont)
-          (parameterize ([current-process (channel-get ready-ch)])
-            (with-handlers ([exn:break:hang-up? quit]
-                            [exn:break:terminate? die]
-                            [(λ _ #t) (λ (e) (set-box! raised (list e)) (die))])
-              (parameterize-break #t
-                (thunk))))))
-      (for ([proc (flatten (current-on-stop))]) (proc)))
-    (for ([proc (flatten (current-on-dead))]) (proc)))
-  (define π (make-process (thread process)
-                          (channel-get ready-ch)
-                          (channel-get ready-ch)
-                          (flatten (current-command))
-                          raised
-                          (make-channel)
-                          (make-channel)))
-  (channel-put ready-ch π)
-  π)
+          (for ([proc on-stop-hook]) (proc))))
+      (parameterize-break #f
+        (for ([proc on-dead-hook]) (proc))))
+    (define π (make-process (thread process)
+                            (channel-get ready-ch)
+                            (channel-get ready-ch)
+                            command-hook
+                            raised
+                            (make-channel)
+                            (make-channel)))
+    (channel-put ready-ch π)
+    π))
 
 (define-syntax start
   (syntax-rules ()
@@ -107,8 +115,8 @@
     [(start π) π]))
 
 (define (stop π)
-  (sync (thread (λ () (break-thread (process-thread π) 'hang-up) (sync π))))
-  (void))
+  (break-thread (process-thread π) 'hang-up)
+  (wait π))
 
 (define (kill π)
   (break-thread (process-thread π) 'terminate)
