@@ -80,22 +80,32 @@
          #:on-dead (λ () (kill src))
          #:command (λ vs (apply src vs))))
 
-(define (tcp-service proc make-codec port-no
+(define (tcp-service make-server make-codec port-no
                      [max-allow-wait 4]
                      [reuse? #f]
                      [hostname #f])
-  (define svc (service (λ (π) (π 'address))))
-  (define srv
-    (tcp-server proc make-codec port-no max-allow-wait reuse? hostname))
-  (start (process (λ () (forever (give svc (recv srv)) (recv svc))))
-         #:on-dead (λ () (kill srv) (kill svc))
-         #:command (λ vs
-                     (cond [(equal? vs '(peers)) (svc 'keys)]
-                           [(or (null? vs)
-                                (null? (cdr vs))
-                                (not (null? (cddr vs)))) unhandled]
-                           [(equal? (car vs) 'drop) (svc 'drop (cadr vs))]
-                           [else unhandled]))))
+  (define svc
+    (service (λ (π) (π 'address))
+             #:on-service-stop (λ (_ π) (stop π))))
+  (define src (tcp-source make-codec port-no max-allow-wait reuse? hostname))
+  (start
+   (process
+    (λ ()
+      (forever
+        (define cdc (recv src))
+        (define addr (cdc 'address))
+        (define srv (make-server addr))
+        (call svc (start (bridge cdc srv) #:on-dead (λ () (svc 'drop addr)))))))
+   #:on-stop (λ () (kill src) (stop svc))
+   #:on-dead (λ () (kill src) (kill svc))
+   #:command (λ vs
+               (cond [(equal? vs '(listen-address)) (src 'listen-address)]
+                     [(equal? vs '(peers)) (svc 'keys)]
+                     [(or (null? vs)
+                          (null? (cdr vs))
+                          (not (null? (cddr vs)))) unhandled]
+                     [(equal? (car vs) 'drop) (stop (svc 'get (cadr vs)))]
+                     [else unhandled]))))
 
 (module+ test
   (require rackunit
