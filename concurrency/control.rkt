@@ -125,6 +125,7 @@
                            [(or (null? vs)
                                 (null? (cdr vs))
                                 (not (null? (cddr vs)))) unhandled]
+                           [(equal? (car vs) 'get) (hash-ref pairs (cadr vs))]
                            [(equal? (car vs) 'drop) (drop (cadr vs))]
                            [else unhandled]))))
 
@@ -446,7 +447,13 @@
     (check equal? (sort (π 'keys) <) '(0 1 2 3 4)))
 
   (test-case
-    "The service command `(drop ,key) drops key."
+    "The service command 'get key returns the values assiociated with key."
+    (define π (service values))
+    (for ([i 5]) (call π i))
+    (for ([j 5]) (check = (π 'get (list-ref (π 'keys) j)) j)))
+
+  (test-case
+    "The service command 'drop key drops key."
     (define π (service values))
     (for ([i 10]) (give π i) (recv π))
     (for ([j 5]) (π 'drop (* j 2)))
