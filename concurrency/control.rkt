@@ -411,7 +411,7 @@
     "A service applies key-proc to each value given."
     (define N 0)
     (define π (service (λ (x) (set! N (+ N x)))))
-    (for ([i 5]) (give π i) (recv π))
+    (for ([i 5]) (call π i))
     (kill π)
     (check = N 10))
 
@@ -426,7 +426,7 @@
     "A service applies on-drop to each pair it drops."
     (define N 0)
     (define π (service values #:on-drop (λ (x _) (set! N (+ N x)))))
-    (for ([i 5]) (give π i) (recv π))
+    (for ([i 5]) (call π i))
     (check = N 0)
     (for ([i 5]) (π 'drop i))
     (check = N 10))
@@ -435,7 +435,7 @@
     "A service applies on-svc-stop to every pair when it stops."
     (define N 0)
     (define π (service values #:on-service-stop (λ (x _) (set! N (+ N x)))))
-    (for ([i 5]) (give π i) (recv π))
+    (for ([i 5]) (call π i))
     (check = N 0)
     (stop π)
     (check = N 10))
@@ -443,7 +443,7 @@
   (test-case
     "The service command 'keys returns a list of keys in use."
     (define π (service values))
-    (for ([i 5]) (give π i) (recv π))
+    (for ([i 5]) (call π i))
     (check equal? (sort (π 'keys) <) '(0 1 2 3 4)))
 
   (test-case
@@ -455,14 +455,14 @@
   (test-case
     "The service command 'drop key drops key."
     (define π (service values))
-    (for ([i 10]) (give π i) (recv π))
+    (for ([i 10]) (call π i))
     (for ([j 5]) (π 'drop (* j 2)))
     (check equal? (sort (π 'keys) <) '(1 3 5 7 9)))
 
   (test-case
-    "The service command (drop key) returns #t if key was in use, #f otherwise."
+    "The service command 'drop key returns #t if key was in use, #f otherwise."
     (define π (service values))
-    (for ([i 10]) (give π i) (recv π))
+    (for ([i 10]) (call π i))
     (for ([j 5]) (check-true (π 'drop (* j 2))))
     (for ([k 10])
       (if (even? k)
