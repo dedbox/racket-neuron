@@ -390,8 +390,9 @@ A @deftech{codec type} is ...
                       ) process?]{
   Creates a @racket[tcp-server] with @racket[make-proc] and
   @racket[make-codec]. Adds connections emitted by the @racket[tcp-server] to
-  a @racket[service] keyed by full address. Closes all TCP connections when it
-  stops.
+  a @racket[service] keyed by full address. Applies @racket[make-proc] to the
+  full address of each TCP connection accepted. Closes all TCP connections
+  when it stops.
 
   Commands:
 
