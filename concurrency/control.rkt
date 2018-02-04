@@ -177,11 +177,20 @@
   (start
    (process
     (λ ()
-      (define (handle v on-eof else-fun)
-        (if (eof-object? v) (on-eof π) (else-fun v)))
-      (sync (thread (λ () (forever (handle (take) on-take-eof (curry give π)))))
-            (thread (λ () (forever (handle (recv π) on-emit-eof emit))))
-            (handle-evt π die))))
+      (sync
+       (evt-loop (λ _
+                   (evt-series (λ _ (take-evt))
+                               (λ (v)
+                                 (if (eof-object? v)
+                                     (on-take-eof π)
+                                     (give-evt π v))))))
+       (evt-loop (λ _
+                   (evt-series (λ _ (recv-evt π))
+                               (λ (v)
+                                 (if (eof-object? v)
+                                     (on-emit-eof π)
+                                     (emit-evt v))))))
+       (handle-evt π die))))
    #:on-stop (λ () (stop π))))
 
 (define (shutdown π)
@@ -580,8 +589,7 @@
 
   (test-case
     "A managed process calls on-emit-eof when π emits eof."
-    (define π (managed (process (λ () (emit 59) (emit eof) (deadlock)))))
-    (check = (recv π) 59)
+    (define π (managed (process (λ () (emit eof) (deadlock)))))
     (wait π)
     (check-true (dead? π)))
 
