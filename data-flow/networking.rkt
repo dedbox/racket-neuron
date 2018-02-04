@@ -299,4 +299,71 @@
     (check equal? (π 'remote-address) (cli 'local-address))
     (for ([i 10]) (check = (call cli i) (+ i 1))))
 
-  )
+  (test-case
+    "A tcp-service creates a tcp-server on proc and make-codec."
+    (define svc (tcp-service (λ _ (server add1)) sexp-codec 0 4 #t #f))
+    (define cli
+      (tcp-client sexp-codec "localhost" (cadr (svc 'listen-address))))
+    (for ([i 10]) (check = (call cli i) (+ i 1))))
+
+  (test-case
+    "A tcp-service keys connections by full address."
+    (define svc (tcp-service (λ _ (server add1)) sexp-codec 0 4 #t #f))
+    (define cli
+      (tcp-client sexp-codec "localhost" (cadr (svc 'listen-address))))
+    (check = (call cli 0) 1)
+    (define addr (cli 'address))
+    (check equal? (svc 'peers) (list (append (list:drop addr 2)
+                                             (list:take addr 2)))))
+
+  (test-case
+    "A tcp-service closes all connections when it stops."
+    (define svc (tcp-service (λ _ (server add1)) sexp-codec 0 4 #t #f))
+    (define clis
+      (for/list ([_ 3])
+        (tcp-client sexp-codec "localhost" (cadr (svc 'listen-address)))))
+    (for ([cli clis]) (check = (call cli 0) 1))
+    (stop svc)
+    (check-true (dead? svc))
+    (for ([cli clis])
+      (sync cli)
+      (check-true (dead? cli))))
+
+  (test-case
+    "tcp-service command 'listen-address returns the address of the listener."
+    (define svc (tcp-service (λ _ (server add1)) sexp-codec 3600 4 #t #f))
+    (check equal? (cadr (svc 'listen-address)) 3600)
+    (kill svc))
+
+  (test-case
+    "tcp-service command 'peers returns a list of addresses."
+    (define svc (tcp-service (λ _ (server add1)) sexp-codec 0 4 #t #f))
+    (define clis
+      (for/list ([_ 3])
+        (tcp-client sexp-codec "localhost" (cadr (svc 'listen-address)))))
+    (for ([cli clis]) (check = 1 (call cli 0)))
+    (define (address-sort a b)
+      (< (cadddr a) (cadddr b)))
+    (check equal? (sort (svc 'peers) address-sort)
+           (sort (map (λ (cli)
+                        (define addr (cli 'address))
+                        (append (list:drop addr 2) (list:take addr 2)))
+                      clis)
+                 address-sort)))
+
+  (test-case
+    "tcp-service command 'drop addr drops peer with address addr."
+    (define svc
+      (tcp-service (λ _ (managed (server add1))) sexp-codec 0 4 #t #f))
+    (for ([i 3])
+      (define clis
+        (for/list ([_ 3])
+          (tcp-client sexp-codec "localhost" (cadr (svc 'listen-address)))))
+      (for ([cli clis]) (check = 1 (call cli 0)))
+      (define addr (list-ref (svc 'peers) i))
+      (svc 'drop addr)
+      (for ([cli clis])
+        (if (equal? (cli 'address) (append (list:drop addr 2)
+                                           (list:take addr 2)))
+            (check-true (not (not (sync/timeout 1 cli))))
+            (stop cli))))))
