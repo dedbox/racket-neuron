@@ -108,9 +108,9 @@
   (define pairs (make-hash))
   (define (drop key)
     (and (hash-has-key? pairs key)
-         (begin
-           (on-drop key (hash-ref pairs key))
+         (let ([val (hash-ref pairs key)])
            (hash-remove! pairs key)
+           (on-drop key val)
            #t)))
   (start (process (λ ()
                     (forever
@@ -118,7 +118,7 @@
                       (define key (key-proc val))
                       (hash-set! pairs key val)
                       (emit key))))
-         #:on-stop (λ () (hash-for-each pairs on-svc-stop))
+         #:on-stop (λ () (dict-for-each (hash->list pairs) on-svc-stop))
          #:command (λ vs
                      (cond [(equal? vs '(keys)) (hash-keys pairs)]
                            [(equal? vs '(values)) (hash-values pairs)]
