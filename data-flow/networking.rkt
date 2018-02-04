@@ -48,7 +48,7 @@
                      (cond [(equal? vs '(address)) addr]
                            [(equal? vs '(local-address)) (list:take addr 2)]
                            [(equal? vs '(remote-address)) (list:drop addr 2)]
-                           [else unhandled]))))
+                           [else (apply cdc vs)]))))
 
 (define (tcp-client make-codec hostname port-no
                     [local-hostname #f]
