@@ -117,11 +117,28 @@
 
 @section{Decoding and Encoding}
 
-A @deftech{parser} is ...
+A @deftech{parser} is a procedure that takes an @racket-tech{input port} and
+returns values de-serialized from the port. A @deftech{printer} is a procedure
+that takes a value and an @racket-tech{output port}, then serializes the value
+to the port. A @deftech{decoder} is a process that applies a parser to an
+@racket-tech{input port} and emits the resulting value. An @deftech{encoder}
+is a process that prints given values to an output port. A @deftech{codec} is
+a composite process that behaves like an encoder and a decoder.
 
-A @deftech{printer} is ...
+A @deftech{codec type} is a set of uniformly-named procedures for making
+codecs and codec parts. A complete codec type named @var[name] is defined by
+the following procedures:
 
-A @deftech{codec type} is ...
+@itemlist[
+  @item{@var[name]@racket[-parser] @bold{:} @racket[parser/c]}
+  @item{@var[name]@racket[-printer] @bold{:} @racket[printer/c]}
+  @item{@var[name]@racket[-decoder] @bold{:} @racket[(-> parser/c input-port?
+    process?)]}
+  @item{@var[name]@racket[-encoder] @bold{:} @racket[(-> printer/c
+    output-port? process?)]}
+  @item{@var[name]@racket[-codec] @bold{:} @racket[(-> parser/c printer/c
+    input-port? output-port? process?)]}
+]
 
 @defthing[parser/c contract?]{
   Use this @racket-tech{function contract} to indicate that a function is a
@@ -138,10 +155,12 @@ A @deftech{codec type} is ...
   @racket-tech{output port}.
 }
 
+Use @racket[define-codec] to create new codec types.
+
 @defproc[(decoder [prs parser/c]
                   [in-port input-port?]
                   ) process?]{
-  Returns a @deftech{decoder} @tech{source} process. Calls @racket[(emit (prs
+  Returns a @tech{decoder} @tech{source} process. Calls @racket[(emit (prs
   in-port))]. Stops when @racket[prs] returns @racket[eof]. Closes
   @racket[in-port] when it stops. Dies when @racket[in-port] closes.
 
@@ -164,7 +183,7 @@ A @deftech{codec type} is ...
 @defproc[(encoder [prn printer/c]
                   [out-port output-port?]
                   ) process?]{
-  Returns an @deftech{encoder} @tech{sink} process. Calls @racket[(prn (take)
+  Returns an @tech{encoder} @tech{sink} process. Calls @racket[(prn (take)
   out-port)]. Stops when given @racket[eof]. Closes @racket[out-port] when it
   stops. Dies when @racket[out-port] closes.
 
@@ -188,7 +207,7 @@ A @deftech{codec type} is ...
                 [in-port input-port?]
                 [out-port output-port?]
                 ) process?]{
-  Returns a @deftech{codec} @tech{socket} process with source @racket[(decoder
+  Returns a @tech{codec} @tech{socket} process with source @racket[(decoder
   prs in-port)] and sink @racket[(encoder prn out-port)].
 
   Commands:
