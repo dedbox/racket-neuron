@@ -122,32 +122,45 @@ returns values de-serialized from the port. A @deftech{printer} is a procedure
 that takes a value and an @racket-tech{output port}, then serializes the value
 to the port. A @deftech{decoder} is a process that applies a parser to an
 @racket-tech{input port} and emits the resulting value. An @deftech{encoder}
-is a process that prints given values to an output port. A @deftech{codec} is
-a composite process that behaves like an encoder and a decoder.
+is a process that prints given values to an @racket-tech{output port}. A
+@deftech{codec} is a composite process that behaves like an @racket[encoder]
+@emph{and} a @racket[decoder].
 
 A @deftech{codec type} is a set of uniformly-named procedures for making
 codecs and codec parts. A complete codec type named @var[name] is defined by
 the following procedures:
 
 @itemlist[
-  @item{@var[name]@racket[-parser] @bold{:} @racket[parser/c]}
-  @item{@var[name]@racket[-printer] @bold{:} @racket[printer/c]}
-  @item{@var[name]@racket[-decoder] @bold{:} @racket[(-> parser/c input-port?
-    process?)]}
-  @item{@var[name]@racket[-encoder] @bold{:} @racket[(-> printer/c
-    output-port? process?)]}
-  @item{@var[name]@racket[-codec] @bold{:} @racket[(-> parser/c printer/c
-    input-port? output-port? process?)]}
+  @item{@var[name]@racket[-parser] : @racket[parser/c]}
+  @item{@var[name]@racket[-printer] : @racket[printer/c]}
+  @item{@var[name]@racket[-decoder] : @racket[decoder/c]}
+  @item{@var[name]@racket[-encoder] : @racket[encoder/c]}
+  @item{@var[name]@racket[-codec] : @racket[codec/c]}
 ]
 
-@defthing[parser/c contract?]{
+@defthing[parser/c contract? #:value (-> input-port? any/c)]{
   Use this @racket-tech{function contract} to indicate that a function is a
-  @tech{parser}. Equivalent to @racket[(-> output-port? any/c)].
+  @tech{parser}.
 }
 
-@defthing[printer/c contract?]{
+@defthing[printer/c contract? #:value (-> any/c output-port? any)]{
   Use this @racket-tech{function contract} to indicate that a function is a
-  @tech{printer}. Equivalent to @racket[(-> any/c input-port? any)].
+  @tech{printer}.
+}
+
+@defthing[decoder/c contract? #:value (-> input-port? process?)]{
+  Use this @racket-tech{function contract} to indicate that a function is a
+  @tech{decoder}.
+}
+
+@defthing[encoder/c contract? #:value (-> output-port? process?)]{
+  Use this @racket-tech{function contract} to indicate that a function is an
+  @tech{encoder}.
+}
+
+@defthing[codec/c contract? #:value (-> input-port? output-port? process?)]{
+  Use this @racket-tech{function contract} to indicate that a function is an
+  @tech{codec}.
 }
 
 @defproc[(flushed [prn printer/c]) printer/c]{
@@ -157,9 +170,7 @@ the following procedures:
 
 Use @racket[define-codec] to create new codec types.
 
-@defproc[(decoder [prs parser/c]
-                  [in-port input-port?]
-                  ) process?]{
+@defproc[(decoder [prs parser/c] [in-port input-port?]) process?]{
   Returns a @tech{decoder} @tech{source} process. Calls @racket[(emit (prs
   in-port))]. Stops when @racket[prs] returns @racket[eof]. Closes
   @racket[in-port] when it stops. Dies when @racket[in-port] closes.
@@ -180,9 +191,7 @@ Use @racket[define-codec] to create new codec types.
   ]
 }
 
-@defproc[(encoder [prn printer/c]
-                  [out-port output-port?]
-                  ) process?]{
+@defproc[(encoder [prn printer/c] [out-port output-port?]) process?]{
   Returns an @tech{encoder} @tech{sink} process. Calls @racket[(prn (take)
   out-port)]. Stops when given @racket[eof]. Closes @racket[out-port] when it
   stops. Dies when @racket[out-port] closes.
@@ -236,9 +245,7 @@ Use @racket[define-codec] to create new codec types.
 @defproc[(make-codec-type [name symbol?]
                           [prs parser/c]
                           [prn printer/c]
-                          ) (values (-> input-port? process?)
-                                    (-> output-port? process?)
-                                    (-> input-port? output-port? process?))]{
+                          ) (values decoder/c encoder/c codec/c)]{
   Creates a new @tech{codec type}. The @racket[name] argument is used as the
   type name.
 
@@ -274,12 +281,13 @@ Use @racket[define-codec] to create new codec types.
 
 @subsection{Codecs}
 
-@deftogether[(@defproc[(line-parser [in-port input-port?]) any/c]
-              @defproc[(line-printer [out-port output-port?]) any/c]
-              @defproc[(line-decoder [in-port input-port?]) process?]
-              @defproc[(line-encoder [out-port output-port?]) process?]
-              @defproc[(line-codec [in-port input-port?]
-                                   [out-port output-port?]) process?])]{
+@deftogether[(
+  @defthing[#:kind "procedure" line-parser parser/c]
+  @defthing[#:kind "procedure" line-printer printer/c]
+  @defthing[#:kind "procedure" line-decoder decoder/c]
+  @defthing[#:kind "procedure" line-encoder encoder/c]
+  @defthing[#:kind "procedure" line-codec codec/c]
+)]{
   Line @tech{codec type}.
 
   @examples[
@@ -292,12 +300,13 @@ Use @racket[define-codec] to create new codec types.
   ]
 }
 
-@deftogether[(@defproc[(sexp-parser [in-port input-port?]) any/c]
-              @defproc[(sexp-printer [out-port output-port?]) any/c]
-              @defproc[(sexp-decoder [in-port input-port?]) process?]
-              @defproc[(sexp-encoder [out-port output-port?]) process?]
-              @defproc[(sexp-codec [in-port input-port?]
-                                   [out-port output-port?]) process?])]{
+@deftogether[(
+  @defthing[#:kind "procedure" sexp-parser parser/c]
+  @defthing[#:kind "procedure" sexp-printer printer/c]
+  @defthing[#:kind "procedure" sexp-decoder decoder/c]
+  @defthing[#:kind "procedure" sexp-encoder encoder/c]
+  @defthing[#:kind "procedure" sexp-codec codec/c]
+)]{
   S-expression @tech{codec type}.
 
   @examples[
@@ -310,12 +319,13 @@ Use @racket[define-codec] to create new codec types.
   ]
 }
 
-@deftogether[(@defproc[(json-parser [in-port input-port?]) any/c]
-              @defproc[(json-printer [out-port output-port?]) any/c]
-              @defproc[(json-decoder [in-port input-port?]) process?]
-              @defproc[(json-encoder [out-port output-port?]) process?]
-              @defproc[(json-codec [in-port input-port?]
-                                   [out-port output-port?]) process?])]{
+@deftogether[(
+  @defthing[#:kind "procedure" json-parser parser/c]
+  @defthing[#:kind "procedure" json-printer printer/c]
+  @defthing[#:kind "procedure" json-decoder decoder/c]
+  @defthing[#:kind "procedure" json-encoder encoder/c]
+  @defthing[#:kind "procedure" json-codec codec/c]
+)]{
   @other-doc['(lib "json/json.scrbl")] @tech{codec type}.
 
   To change how null is represented, set the @racket[json-null] parameter.
@@ -421,4 +431,33 @@ Use @racket[define-codec] to create new codec types.
     @item{@racket['peers] -- @racket[service] command @racket['keys]}
      @item{@racket['drop addr] -- @racket[service] command @racket['drop addr]}
   ]
+}
+
+@defproc[(udp-datagram-source [sock udp?]) process?]{
+  Emits each datagram received from @racket[sock] as a byte string.
+}
+
+@defproc[(udp-datagram-sink [sock udp?]) process?]{
+  Writes each given byte string to @racket[sock] as a datagram. Bytes strings
+  of length exceeding 65,527 bytes, the maximum size of a UDP datagram
+  payload, are truncated silently.
+}
+
+@defproc[(udp-datagram-socket [sock udp?]) process?]{
+  Returns a @racket[socket] process that combines a
+  @racket[udp-datagram-source] and @racket[udp-datagram-sink].
+}
+
+@defproc[(udp-source [prs parser/c]) process?]{
+  Listens for incoming UDP datagrams. Returns a @racket[source] process that
+  applies @racket[prs] to each UDP datagram received and emits the result.
+}
+
+@defproc[(udp-sink [prn printer/c]) process?]{
+  Applies @racket[prn] to each value received and transmits the result as a
+  UDP datagram.
+}
+
+@defproc[(udp-decoder [make-dec decoder/c]) process?]{
+  
 }

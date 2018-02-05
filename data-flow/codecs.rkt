@@ -13,6 +13,9 @@
  (contract-out
   [parser/c contract?]
   [printer/c contract?]
+  [decoder/c contract?]
+  [encoder/c contract?]
+  [codec/c contract?]
   [flushed (-> printer/c printer/c)]
   [decoder (-> parser/c input-port? process?)]
   [encoder (-> printer/c output-port? process?)]
@@ -39,6 +42,9 @@
 
 (define parser/c (-> input-port? any/c))
 (define printer/c (-> any/c output-port? any))
+(define decoder/c (-> parser/c input-port? process?))
+(define encoder/c (-> printer/c output-port? process?))
+(define codec/c (-> parser/c printer/c input-port? output-port? process?))
 
 (define (flushed prn)
   (λ (v out-port)
