@@ -296,9 +296,10 @@ Processes are created explicitly by the @racket[process] function. Use
   @itemlist[
     @item{@racket['keys] -- returns a list of keys in use}
     @item{@racket['values] -- returns a list of values in use}
-    @item{@racket['get key] -- returns the value associated with key}
-    @item{@racket['drop key] -- drops @racket[key]; returns @racket[#t] if key
-      was in use, @racket[#f] otherwise.}
+    @item{@racket['get] @var[key] -- returns the value associated with @var[key]}
+    @item{@racket['drop] @var[key] -- drops the value associated with
+      @var[key]; returns @racket[#t] if @var[key] was in use, @racket[#f]
+      otherwise.}
   ]
 }
 
