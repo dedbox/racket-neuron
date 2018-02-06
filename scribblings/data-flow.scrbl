@@ -429,7 +429,8 @@ Use @racket[define-codec] to create new codec types.
     @item{@racket['listen-address] -- @racket[tcp-server] command
       @racket['listen-address]}
     @item{@racket['peers] -- @racket[service] command @racket['keys]}
-     @item{@racket['drop addr] -- @racket[service] command @racket['drop addr]}
+    @item{@racket['drop] @var[addr] -- @racket[service] command @racket['drop]
+      @var[addr]}
   ]
 }
 
