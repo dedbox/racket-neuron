@@ -8,8 +8,11 @@
 @defmodule[neuron #:packages ("neuron")]
 
 The @racketmodname[neuron] library is a framework for creating and
-participating in Internet-scale software ecosystems. Components are provided
-for building decentralized run time environments and programs.
+participating in Internet-scale software ecosystems. Neuron provides a
+unified, architecture-agnostic API for IPC and distributed messaging, along
+with components for building dynamic data-flow networks, decentralized run
+time environments and programs, and process-mobile software agents.
+
 
 @; @centered[
 @;   @vc-append[
