@@ -2,7 +2,7 @@
 
 @(require "base.rkt")
 
-@title{Control Your Resources}
+@title[#:style '(grouper)]{Control Your Resources}
 
 @include-section["concurrency.scrbl"]
 @include-section["data-flow.scrbl"]

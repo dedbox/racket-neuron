@@ -153,17 +153,17 @@ time environments and programs, and process-mobile software agents.
 
 @include-section["resources.scrbl"]
 
-@section{Control Your Network}
+@section[#:style '(grouper)]{Control Your Network}
 @subsection{Distributed Evaluation}
 @subsubsection{Portability}
 @subsubsection{Process Mobility}
 @subsection{Capabilities}
 
-@section{Cooperate with Others}
+@section[#:style '(grouper)]{Cooperate with Others}
 @subsection{Decentralized Run Time Environments}
 @subsection{Decentralized Programs}
 
-@section{Grow a Community}
+@section[#:style '(grouper)]{Grow a Community}
 @subsection{Identity}
 @subsection{Association}
 @subsection{Accountability}
