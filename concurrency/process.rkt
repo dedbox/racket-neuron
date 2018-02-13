@@ -38,7 +38,7 @@
    (process-thread π)
    (λ _
      (define raised (unbox (process-raised π)))
-     (when (list? raised)
+     (when (pair? raised)
        (raise (car raised)))
      π)))
 
