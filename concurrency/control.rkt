@@ -20,7 +20,7 @@
   [server (-> (-> any/c any/c) process?)]
   [sink (-> (-> any/c any) process?)]
   [source (-> (-> any/c) process?)]
-  [socket (-> process? process? process?)]
+  [stream (-> process? process? process?)]
   [service (->* ((-> any/c any/c))
                 (#:on-drop (-> any/c any/c any)
                  #:on-service-stop (-> any/c any/c any))
@@ -91,7 +91,7 @@
 (define (source proc)
   (process (λ () (forever (emit (proc))))))
 
-(define (socket snk src)
+(define (stream snk src)
   (start (process (λ ()
                     (sync (thread (λ () (forever (give snk (take)))))
                           (thread (λ () (forever (emit (recv src)))))
@@ -350,26 +350,26 @@
     (for ([i 10]) (check = (recv π) i)))
 
   (test-case
-    "A socket forwards to snk."
+    "A stream forwards to snk."
     (define result-ch (make-channel))
-    (define π (socket (sink (curry channel-put result-ch)) (source void)))
+    (define π (stream (sink (curry channel-put result-ch)) (source void)))
     (for ([i 10])
       (give π i)
       (check = (channel-get result-ch) i)))
 
   (test-case
-    "A socket forwards from src."
-    (define π (socket (sink void) (source random)))
+    "A stream forwards from src."
+    (define π (stream (sink void) (source random)))
     (for ([_ 10])
       (define v (recv π))
       (check >= v 0)
       (check <= v 1)))
 
   (test-case
-    "A socket stops snk and src when it stops."
+    "A stream stops snk and src when it stops."
     (define ch (make-async-channel))
     (define π
-      (socket
+      (stream
        (start (sink deadlock) #:on-stop (λ () (async-channel-put ch #t)))
        (start (source deadlock) #:on-stop (λ () (async-channel-put ch #t)))))
     (stop π)
@@ -377,43 +377,43 @@
     (check-true (async-channel-get ch)))
 
   (test-case
-    "A socket dies when snk and src die."
+    "A stream dies when snk and src die."
     (define snk (sink deadlock))
     (define src (source deadlock))
-    (define sock (socket snk src))
+    (define sock (stream snk src))
     (kill snk)
     (kill src)
     (wait sock)
     (check-true (dead? sock)))
 
   (test-case
-    "A socket does not die when snk dies if src is alive."
+    "A stream does not die when snk dies if src is alive."
     (define snk (sink deadlock))
     (define src (source deadlock))
-    (define sock (socket snk src))
+    (define sock (stream snk src))
     (kill snk)
     (check-true (alive? src))
     (check-false (dead? sock)))
 
   (test-case
-    "A socket does not die when src dies if snk is alive."
+    "A stream does not die when src dies if snk is alive."
     (define snk (sink deadlock))
     (define src (source deadlock))
-    (define sock (socket snk src))
+    (define sock (stream snk src))
     (kill src)
     (check-true (alive? snk))
     (check-false (dead? sock)))
 
   (test-case
-    "The socket command 'sink returns snk."
+    "The stream command 'sink returns snk."
     (define snk (sink deadlock))
-    (define sock (socket snk (source deadlock)))
+    (define sock (stream snk (source deadlock)))
     (check eq? (sock 'sink) snk))
 
   (test-case
-    "The socket command 'source returns src."
+    "The stream command 'source returns src."
     (define src (source deadlock))
-    (define sock (socket (sink deadlock) src))
+    (define sock (stream (sink deadlock) src))
     (check eq? (sock 'source) src))
 
   (test-case

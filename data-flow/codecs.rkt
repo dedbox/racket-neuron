@@ -78,7 +78,7 @@
 (define (codec prs prn in-port out-port)
   (define dec (decoder prs in-port))
   (define enc (encoder prn out-port))
-  (start (socket enc dec)
+  (start (stream enc dec)
          #:on-stop (λ () (stop enc) (stop dec))
          #:command (λ vs
                      (cond [(equal? vs '(decoder)) dec]
@@ -189,7 +189,7 @@
     (check equal? ((encoder write out-port) 'output-port) out-port))
 
   (test-case
-    "A codec is a socket."
+    "A codec is a stream."
     (define cdc (codec read write (open-input-string "") (open-output-string)))
     (check-pred process? cdc)
     (check-pred process? (cdc 'sink))

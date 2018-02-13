@@ -270,8 +270,8 @@ Processes are created explicitly by the @racket[process] function. Use
   repeatedly and emits each result.
 }
 
-@defproc[(socket [snk process?] [src process?]) process?]{
-  Returns a @deftech{socket} process. Forwards to @racket[snk] and from
+@defproc[(stream [snk process?] [src process?]) process?]{
+  Returns a @deftech{stream} process. Forwards to @racket[snk] and from
   @racket[src]. Stops @racket[snk] and @racket[src] when it stops. Dies when
   both @racket[snk] and @racket[src] die.
 

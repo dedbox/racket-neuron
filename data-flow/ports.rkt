@@ -8,7 +8,7 @@
  (contract-out
   [port-sink (-> output-port? process?)]
   [port-source (-> exact-nonnegative-integer? input-port? process?)]
-  [port-socket (-> exact-nonnegative-integer? input-port? output-port?
+  [port-stream (-> exact-nonnegative-integer? input-port? output-port?
                    process?)]
   [byte-sink (-> process?)]
   [string-sink (-> process?)]
@@ -39,8 +39,8 @@
          #:command (λ vs
                      (if (equal? vs '(input-port)) in-port unhandled-command))))
 
-(define (port-socket amt in-port out-port)
-  (socket (port-sink out-port) (port-source amt in-port)))
+(define (port-stream amt in-port out-port)
+  (stream (port-sink out-port) (port-source amt in-port)))
 
 (define (byte-sink)
   (define out-port (open-output-bytes))

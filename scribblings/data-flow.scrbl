@@ -49,11 +49,11 @@
   ]
 }
 
-@defproc[(port-socket [amt exact-nonnegative-integer?]
+@defproc[(port-stream [amt exact-nonnegative-integer?]
                       [in-port input-port?]
                       [out-port output-port?]
                       ) process?]{
-  Returns a @tech{socket} with source @racket[(port-source amt in-port)] and
+  Returns a @tech{stream} with source @racket[(port-source amt in-port)] and
   sink @racket[(port-sink out-port)].
 }
 
@@ -216,7 +216,7 @@ Use @racket[define-codec] to create new codec types.
                 [in-port input-port?]
                 [out-port output-port?]
                 ) process?]{
-  Returns a @tech{codec} @tech{socket} process with source @racket[(decoder
+  Returns a @tech{codec} @tech{stream} process with source @racket[(decoder
   prs in-port)] and sink @racket[(encoder prn out-port)].
 
   Commands:
@@ -444,8 +444,8 @@ Use @racket[define-codec] to create new codec types.
   payload, are truncated silently.
 }
 
-@defproc[(udp-datagram-socket [sock udp?]) process?]{
-  Returns a @racket[socket] process that combines a
+@defproc[(udp-datagram-stream [sock udp?]) process?]{
+  Returns a @racket[stream] process that combines a
   @racket[udp-datagram-source] and @racket[udp-datagram-sink].
 }
 
