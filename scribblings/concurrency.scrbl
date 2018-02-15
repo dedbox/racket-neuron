@@ -342,13 +342,16 @@ Processes are created explicitly by the @racket[process] function. Use
 }
 
 @defproc[(managed [π process?]
-                  [#:on-take-eof on-take-eof (-> process? any) stop]
-                  [#:on-emit-eof on-emit-eof (-> process? any) stop]
+                  [#:pre-take-eof pre-take-eof (-> process? any) stop]
+                  [#:post-take-eof post-take-eof (-> process? any) void]
+                  [#:pre-emit-eof pre-emit-eof (-> process? any) void]
+                  [#:post-emit-eof post-emit-eof (-> process? any) stop]
                   ) process?]{
   Returns a @deftech{managed} process. Forwards non-@racket[eof] values to and
-  from @racket[π]. Calls @racket[on-take-eof] or @racket[on-emit-eof]
-  appropriately when @racket[eof] is encountered. Stops @racket[π] when it
-  stops. Dies when @racket[π] dies.
+  from @racket[π]. Applies @racket[pre-take-eof], @racket[post-take-eof],
+  @racket[pre-emit-eof], and @racket[post-emit-eof] appropriately when
+  @racket[eof] is encountered. Stops @racket[π] when it stops. Dies when
+  @racket[π] dies.
 }
 
 @defproc[(shutdown [π process?]) void?]{

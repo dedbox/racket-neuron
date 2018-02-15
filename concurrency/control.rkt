@@ -33,8 +33,10 @@
   [pipe (-> process? process? ... process?)]
   [bridge (-> process? process? process?)]
   [managed (->* (process?)
-                (#:on-take-eof (-> process? any)
-                 #:on-emit-eof (-> process? any))
+                (#:pre-take-eof (-> process? any)
+                 #:post-take-eof (-> process? any)
+                 #:pre-emit-eof (-> process? any)
+                 #:post-emit-eof (-> process? any))
                 process?)]
   [shutdown (-> process? void?)]))
 
@@ -172,26 +174,33 @@
                (if (equal? result unhandled) (cmd π2 vs) result))))
 
 (define (managed π
-                 #:on-take-eof [on-take-eof stop]
-                 #:on-emit-eof [on-emit-eof stop])
-  (start
-   (process
-    (λ ()
-      (sync
-       (evt-loop (λ _
-                   (evt-series (λ _ (take-evt))
-                               (λ (v)
-                                 (if (eof-object? v)
-                                     (on-take-eof π)
-                                     (give-evt π v))))))
-       (evt-loop (λ _
-                   (evt-series (λ _ (recv-evt π))
-                               (λ (v)
-                                 (if (eof-object? v)
-                                     (on-emit-eof π)
-                                     (emit-evt v))))))
-       (handle-evt π die))))
-   #:on-stop (λ () (stop π))))
+                 #:pre-take-eof [pre-take-eof stop]
+                 #:post-take-eof [post-take-eof void]
+                 #:pre-emit-eof [pre-emit-eof void]
+                 #:post-emit-eof [post-emit-eof stop])
+  (start (process
+          (λ ()
+            (sync (evt-loop
+                   (λ _
+                     (evt-series
+                      (λ _ (take-evt))
+                      (λ (v)
+                        (when (eof-object? v) (pre-take-eof π))
+                        (handle-evt
+                         (give-evt π v)
+                         (λ _ (when (eof-object? v) (post-take-eof π))))))))
+                  (evt-loop
+                   (λ _
+                     (evt-series
+                      (λ _ (recv-evt π))
+                      (λ (v)
+                        (when (eof-object? v) (pre-emit-eof π))
+                        (handle-evt
+                         (emit-evt v)
+                         (λ _ (when (eof-object? v) (post-emit-eof π))))))))
+                  (handle-evt π die))))
+         #:on-stop (λ () (stop π))
+         #:command π))
 
 (define (shutdown π)
   (give π eof)
@@ -577,27 +586,27 @@
 
   (test-case
     "A managed process forwards non-eof values to and from π."
-    (define π (managed (server add1)))
-    (check = (call π 57) 58))
+    (check = (call (managed (server add1)) 57) 58))
 
   (test-case
-    "A managed process calls on-take-eof when eof is given."
+    "A managed process calls pre-take-eof before eof is given."
     (define π (managed (server add1)))
     (give π eof)
     (wait π)
     (check-true (dead? π)))
 
   (test-case
-    "A managed process calls on-emit-eof when π emits eof."
+    "A managed process calls post-emit-eof after π emits eof."
     (define π (managed (process (λ () (emit eof) (deadlock)))))
+    (recv π)
     (wait π)
     (check-true (dead? π)))
 
   (test-case
     "A managed process stops π when it stops."
     (define stopped #f)
-    (stop
-     (managed (start (process deadlock) #:on-stop (λ () (set! stopped #t)))))
+    (stop (managed (start (process deadlock)
+                          #:on-stop (λ () (set! stopped #t)))))
     (check-true stopped))
 
   (test-case
@@ -607,6 +616,11 @@
     (kill π)
     (wait π*)
     (check-pred dead? π*))
+
+  (test-case
+    "A managed process forwards commands to π."
+    (define π (start (process deadlock) #:command add1))
+    (check = ((managed π) 59) 60))
 
   (test-case
     "shutdown gives eof to π and blocks until it dies."
