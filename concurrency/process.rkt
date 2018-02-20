@@ -3,13 +3,13 @@
 (require racket/contract/base
          (only-in racket/list flatten))
 
-(require (for-syntax racket/base))
-
 (provide
  start
  (contract-out
-  [struct unhandled-command ([args (listof any/c)])]
   [unhandled symbol?]
+  [struct unhandled-command
+    ([process process?]
+     [args (listof any/c)])]
   [process? predicate/c]
   [process (-> (-> any) process?)]
   [process-in-ch (-> process? channel?)]
@@ -24,14 +24,17 @@
   [dead? (-> process? boolean?)]
   [alive? (-> process? boolean?)]))
 
-(struct unhandled-command (args) #:transparent)
-(define unhandled (string->unreadable-symbol "unhandled"))
+(define unhandled
+  (string->unreadable-symbol "unhandled"))
 
-(struct process (thread dead-cont stop-cont command raised in-ch out-ch)
-        #:constructor-name make-process
-        #:omit-define-syntaxes
-        #:property prop:evt (λ (π) (wait-evt π))
-        #:property prop:procedure (λ (π . vs) (cmd π vs)))
+(struct unhandled-command (process args) #:transparent)
+
+(struct process
+  (thread dead-cont stop-cont command raised in-ch out-ch)
+  #:constructor-name make-process
+  #:omit-define-syntaxes
+  #:property prop:evt (λ (π) (wait-evt π))
+  #:property prop:procedure (λ (π . vs) (cmd π vs)))
 
 (define (wait-evt π)
   (handle-evt
@@ -45,7 +48,7 @@
 (define (cmd π vs)
   (let loop ([handlers (process-command π)])
     (if (null? handlers)
-        (raise (unhandled-command vs))
+        (raise (unhandled-command π vs))
         (let ([result (apply (car handlers) vs)])
           (if (equal? result unhandled)
               (loop (cdr handlers))
@@ -91,13 +94,14 @@
           (for ([proc on-stop-hook]) (proc))))
       (parameterize-break #f
         (for ([proc on-dead-hook]) (proc))))
-    (define π (make-process (thread process)
-                            (channel-get ready-ch)
-                            (channel-get ready-ch)
-                            command-hook
-                            raised
-                            (make-channel)
-                            (make-channel)))
+    (define π
+      (make-process (thread process)
+                    (channel-get ready-ch)
+                    (channel-get ready-ch)
+                    command-hook
+                    raised
+                    (make-channel)
+                    (make-channel)))
     (channel-put ready-ch π)
     π))
 

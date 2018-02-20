@@ -21,10 +21,7 @@
   [sink (-> (-> any/c any) process?)]
   [source (-> (-> any/c) process?)]
   [stream (-> process? process? process?)]
-  [service (->* ((-> any/c any/c))
-                (#:on-drop (-> any/c any/c any)
-                 #:on-service-stop (-> any/c any/c any))
-                process?)]
+  [service (->* ((-> any/c any/c)) (#:on-drop (-> any/c any/c any)) process?)]
   [simulator (->* ((-> real? any)) (#:rate real?) process?)]
   [proxy (->* (process?)
               (#:on-take (-> any/c any/c)
@@ -38,7 +35,8 @@
                  #:pre-emit-eof (-> process? any)
                  #:post-emit-eof (-> process? any))
                 process?)]
-  [shutdown (-> process? void?)]))
+  [shutdown (-> process? void?)]
+  [shutdown-evt (-> process? evt?)]))
 
 ;; Commands
 
@@ -104,9 +102,7 @@
                            [(equal? vs '(source)) src]
                            [else unhandled]))))
 
-(define (service key-proc
-                 #:on-drop [on-drop void]
-                 #:on-service-stop [on-svc-stop void])
+(define (service key-proc #:on-drop [on-drop void])
   (define pairs (make-hash))
   (define (drop key)
     (and (hash-has-key? pairs key)
@@ -114,22 +110,24 @@
            (hash-remove! pairs key)
            (on-drop key val)
            #t)))
-  (start (process (λ ()
-                    (forever
-                      (define val (take))
-                      (define key (key-proc val))
-                      (hash-set! pairs key val)
-                      (emit key))))
-         #:on-stop (λ () (dict-for-each (hash->list pairs) on-svc-stop))
-         #:command (λ vs
-                     (cond [(equal? vs '(keys)) (hash-keys pairs)]
-                           [(equal? vs '(values)) (hash-values pairs)]
-                           [(or (null? vs)
-                                (null? (cdr vs))
-                                (not (null? (cddr vs)))) unhandled]
-                           [(equal? (car vs) 'get) (hash-ref pairs (cadr vs))]
-                           [(equal? (car vs) 'drop) (drop (cadr vs))]
-                           [else unhandled]))))
+  (start
+   (process
+    (λ ()
+      (forever
+        (define val (take))
+        (define key (key-proc val))
+        (hash-set! pairs key val)
+        (emit key))))
+   #:on-stop (λ () (dict-for-each (hash->list pairs) on-drop))
+   #:command (λ vs
+               (cond [(equal? vs '(keys)) (hash-keys pairs)]
+                     [(equal? vs '(values)) (hash-values pairs)]
+                     [(or (null? vs)
+                          (null? (cdr vs))
+                          (not (null? (cddr vs)))) unhandled]
+                     [(equal? (car vs) 'get) (hash-ref pairs (cadr vs))]
+                     [(equal? (car vs) 'drop) (drop (cadr vs))]
+                     [else unhandled]))))
 
 (define (simulator proc #:rate [rate 10])
   (process (λ ()
@@ -170,41 +168,50 @@
        (handle-evt (choice-evt π1 π2) die))))
    #:on-stop (λ () (stop π1) (stop π2))
    #:command (λ vs
-               (define result (cmd π1 vs))
-               (if (equal? result unhandled) (cmd π2 vs) result))))
+               (cond [(equal? vs '(1)) π1]
+                     [(equal? vs '(2)) π2]
+                     [else
+                      (define result (cmd π1 vs))
+                      (if (eq? result unhandled) (cmd π2 vs) result)]))))
 
 (define (managed π
                  #:pre-take-eof [pre-take-eof stop]
                  #:post-take-eof [post-take-eof void]
                  #:pre-emit-eof [pre-emit-eof void]
                  #:post-emit-eof [post-emit-eof stop])
-  (start (process
-          (λ ()
-            (sync (evt-loop
-                   (λ _
-                     (evt-series
-                      (λ _ (take-evt))
-                      (λ (v)
-                        (when (eof-object? v) (pre-take-eof π))
-                        (handle-evt
-                         (give-evt π v)
-                         (λ _ (when (eof-object? v) (post-take-eof π))))))))
-                  (evt-loop
-                   (λ _
-                     (evt-series
-                      (λ _ (recv-evt π))
-                      (λ (v)
-                        (when (eof-object? v) (pre-emit-eof π))
-                        (handle-evt
-                         (emit-evt v)
-                         (λ _ (when (eof-object? v) (post-emit-eof π))))))))
-                  (handle-evt π die))))
-         #:on-stop (λ () (stop π))
-         #:command π))
+  (start
+   (process
+    (λ ()
+      (sync (evt-loop
+             (λ _
+               (evt-series
+                (λ _ (take-evt))
+                (λ (v)
+                  (when (eof-object? v) (pre-take-eof π))
+                  (handle-evt
+                   (give-evt π v)
+                   (λ _ (when (eof-object? v) (post-take-eof π))))))))
+            (evt-loop
+             (λ _
+               (evt-series
+                (λ _ (recv-evt π))
+                (λ (v)
+                  (when (eof-object? v) (pre-emit-eof π))
+                  (handle-evt
+                   (emit-evt v)
+                   (λ _ (when (eof-object? v) (post-emit-eof π))))))))
+            (handle-evt π die))))
+   #:on-stop (λ () (stop π))
+   #:command π))
 
 (define (shutdown π)
   (give π eof)
   (wait π))
+
+(define (shutdown-evt π)
+  (evt-sequence
+   (λ () (give-evt π eof))
+   (λ () π)))
 
 (module+ test
   (require rackunit
@@ -450,9 +457,9 @@
     (check = N 10))
 
   (test-case
-    "A service applies on-svc-stop to every pair when it stops."
+    "A service applies on-drop to every pair when it stops."
     (define N 0)
-    (define π (service values #:on-service-stop (λ (x _) (set! N (+ N x)))))
+    (define π (service values #:on-drop (λ (x _) (set! N (+ N x)))))
     (for ([i 5]) (call π i))
     (check = N 0)
     (stop π)
@@ -573,16 +580,39 @@
     (check-true (dead? π)))
 
   (test-case
-    "A bridge forwards commands to π1 first."
-    (define π (bridge (start (process deadlock) #:command add1)
-                      (start (process deadlock))))
-    (check = 2 (π 1)))
+    "bridge command 1 returns π1."
+    (define π1 (process deadlock))
+    (define π2 (process deadlock))
+    (check equal? π1 ((bridge π1 π2) 1)))
 
   (test-case
-    "A bridge forwards commands to π2 if π1 fails."
-    (define π (bridge (start (process deadlock))
-                      (start (process deadlock) #:command sub1)))
-    (check = 0 (π 1)))
+    "bridge command 2 return π2."
+    (define π1 (process deadlock))
+    (define π2 (process deadlock))
+    (check equal? π2 ((bridge π1 π2) 2)))
+
+  (test-case
+    "A bridge forwards unhandled commands to π1 first."
+    (define π
+      (bridge (start (process deadlock) #:command add1)
+              (process deadlock)))
+    (check-pred process? (π 1))
+    (check = 4 (π 3)))
+
+  (test-case
+    "A bridge forwards unhandled commands to π2 when π1 fails."
+    (define π
+      (bridge (process deadlock)
+              (start (process deadlock) #:command sub1)))
+    (check-pred process? (π 2))
+    (check = 2 (π 3)))
+
+  (test-case
+    "A bridge raises unhandled-command when π1 and π2 both fail."
+    (define π
+      (bridge (process deadlock)
+              (process deadlock)))
+    (check-exn unhandled-command? (λ () (π 3))))
 
   (test-case
     "A managed process forwards non-eof values to and from π."
@@ -626,4 +656,19 @@
     "shutdown gives eof to π and blocks until it dies."
     (define π (process (λ () (check-true (eof-object? (take))))))
     (shutdown π)
-    (check-true (dead? π))))
+    (check-true (dead? π)))
+
+  (test-case
+    "shutdown-evt returns a synchronizable event."
+    (check-pred evt? (shutdown-evt (process deadlock))))
+
+  (test-case
+    "shutdown-evt gives eof to π and syncs when π dies."
+    (define π (process (λ () (check-pred eof-object? (take)))))
+    (sync (shutdown-evt π))
+    (check-pred dead? π))
+
+  (test-case
+    "shutdown-evt syncs to π."
+    (define π (managed (process deadlock)))
+    (check eq? (sync (shutdown-evt π)) π)))
