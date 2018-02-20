@@ -7,38 +7,35 @@
 @(defmodule neuron/concurrency #:packages ("neuron"))
 
 A @deftech{process} is a @racket-tech{thread}-like concurrency primitive.
-Processes change Racket's @racket-tech{thread} model in the following ways:
+Processes are made from @racket-tech{threads} by replacing the
+@seclink["threadmbox" #:doc '(lib
+"scribblings/reference/reference.scrbl")]{thread mailbox} with a few other
+features:
 
 @itemlist[
-  @item{Drop the built in @secref["threadmbox" #:doc '(lib
-    "scribblings/reference/reference.scrbl")].}
-  @item{Add a pair of unbuffered @racket-tech{channels}: an @deftech{input
-    channel} and an @deftech{output channel}.}
-  @item{Add an out-of-band @tech{command handler}.}
-  @item{Add an @deftech{on-stop hook} that is called when a process ends
+  @item{Two unbuffered @racket-tech{channels}: an @deftech{input channel} and
+    an @deftech{output channel}.}
+  @item{An out-of-band @tech{command handler}.}
+  @item{An @deftech{on-stop hook} that is called when a process ends
     gracefully, but not when it dies abruptly.}
-  @item{Add an @deftech{on-dead hook} that is called unconditionally when a
+  @item{An @deftech{on-dead hook} that is called unconditionally when a
     process terminates.}
 ]
 
 A process can be applied as a procedure, which invokes its @deftech{command
 handler}. The @tech{command handler} is a list of procedures, and the result
-of the command is the same as the result of the first procedure in the list to
-return a value other than @racket[unhandled]. When a procedure returns
-@racket[unhandled], the next procedure is tried. If the last procedure in the
-list returns @racket[unhandled] or the list is empty,
-@racket[unhandled-command] is raised.
+of a command is the same as the result of the first procedure in the list to
+return a value other than @racket[unhandled]. If every procedure returns
+@racket[unhandled] or the list is empty, @racket[unhandled-command] is raised.
 
 @examples[
   #:eval neuron-evaluator
   #:label #f
-  (define H (hash 'property-A 1
-                  'method-B (λ _ 2)))
-  (define π
-    (start (process deadlock)
-           #:command (λ vs (hash-ref H (car vs) unhandled))))
-  (π 'property-A)
-  ((π 'method-B) 5)
+  (define (dispatch k . _)
+    (hash-ref (hasheq 'A 1 'B (λ _ 2)) k unhandled))
+  (define π (start (process deadlock) #:command dispatch))
+  (π 'A)
+  ((π 'B) 5)
   (eval:error (π 'x 'y))
 ]
 
@@ -59,16 +56,17 @@ an unhandled exception re-raises the exception.
 @section{Starting and Stopping Processes}
 
 Processes are created explicitly by the @racket[process] function. Use
-@racket[start] to install hooks.
-
-@defstruct*[unhandled-command ([args (listof any/c)]) #:transparent]{
-  Raised when a @tech{command handler} procedure cannot determine how to
-  handle @racket[args].
-}
+@racket[start] to install hooks and handlers.
 
 @defthing[unhandled symbol?]{
-  Return this unreadable symbol from your @tech{command handler} to indicate
-  that it does not know how to handle a command.
+  Return this value from your @tech{command handler} to indicate that it will
+  not handle a command.
+}
+
+@defstruct*[unhandled-command ([process process?]
+                               [args (listof any/c)]) #:transparent]{
+  Raised when a @tech{command handler} cannot determine how to handle
+  @racket[args].
 }
 
 @defproc[(process? [v any/c]) boolean?]{
@@ -97,12 +95,28 @@ Processes are created explicitly by the @racket[process] function. Use
   Hangs the current process, ignoring any arguments.
 }
 
-@defform[(start π-expr hook ...)
+@defform[(start π-expr hooks-and-handlers ...)
          #:grammar
-         [(hook (code:line #:on-stop on-stop)
-                (code:line #:on-dead on-dead)
-                (code:line #:command handler))]]{
-  Installs @racket[hook]s into any processes created by @racket[π-expr].
+         [(hooks-and-handlers
+           (code:line #:on-stop on-stop)
+           (code:line #:on-dead on-dead)
+           (code:line #:command handler))]]{
+  Installs @racket[hooks-and-handlers] into all processes created in the
+  lexical scope of @racket[π-expr].
+
+  @examples[
+    #:eval neuron-evaluator
+    #:label "Example:"
+    (define π
+      (start (process deadlock)
+             #:on-stop (λ () (displayln 'STOP1))
+             #:on-dead (λ () (displayln 'DEAD1))
+             #:on-stop (λ () (displayln 'STOP2))
+             #:on-dead (λ () (displayln 'DEAD2))
+             #:command add1))
+    (π 1)
+    (stop π)
+  ]
 }
 
 @defproc[(stop [π process?]) void?]{
@@ -115,6 +129,10 @@ Processes are created explicitly by the @racket[process] function. Use
   Immediately terminates the execution of @racket[π] if it is running. Blocks
   until @racket[π] is dead. If @racket[π] is already dead, @racket[kill] has
   no effect.
+}
+
+@defproc[(wait [π process?]) void? #:value (void (sync π))]{
+  Blocks until @racket[π] is @racket-tech{ready for synchronization}. 
 }
 
 @defproc[(dead? [π process?]) boolean?]{
@@ -211,25 +229,49 @@ Processes are created explicitly by the @racket[process] function. Use
 }
 
 @defform[(apply-values proc expr)]{
-  Evaluates @racket[expr] and applies @racket[proc] to the values produced.
+  Evaluates @racket[expr] and then applies @racket[proc] to the resulting
+  values.
+
+  @examples[
+    #:eval neuron-evaluator
+    #:label "Example:"
+    (apply-values list (values 1 2 3))
+  ]
 }
 
 @defproc[(evt-set [evt evt?] ...) evt?]{
   Returns a fresh @racket-tech{synchronizable event} that becomes
-  @racket-tech{ready for synchronization} when all @racket[evt]s have become
+  @racket-tech{ready for synchronization} when all @racket[evt]s are
   @racket-tech{ready for synchronization}. The @racket-tech{synchronization
-  result} of @racket[evt-set] is a list of the @racket-tech{synchronization
-  results} of @racket[evt]s in the order specified.
+  result} is a list of the @racket-tech{synchronization results} of
+  @racket[evt]s in the order specified.
+
+  @examples[
+    #:eval neuron-evaluator
+    #:label "Example:"
+    (sync
+     (evt-set
+      (wrap-evt (thread (λ () (sleep 0.1) (write 1))) (λ _ 1))
+      (wrap-evt (thread (λ () (write 2))) (λ _ 2))))
+  ]
 }
 
 @defproc[(evt-sequence [make-evt (-> evt?)] ...+) evt?]{
   Returns a fresh @racket-tech{synchronizable event} that becomes
   @racket-tech{ready for synchronization} when all events generated by
-  @racket[make-evt]s have become @racket-tech{ready for synchronization}.
-  Calls each @racket[make-evt] in the order specified, with no arguments, and
-  immediately @racket[sync]s the result. The @racket-tech{synchronization
-  result} of @racket[evt-sequence] is the same as the
+  @racket[make-evt]s are @racket-tech{ready for synchronization}. Calls each
+  @racket[make-evt] in the order specified and immediately @racket[sync]s the
+  result. The @racket-tech{synchronization result} is the same as the
   @racket-tech{synchronization result} of the last event generated.
+
+  @examples[
+    #:eval neuron-evaluator
+    #:label "Example:"
+    (sync
+     (evt-sequence
+      (λ () (wrap-evt (thread (λ () (sleep 0.1) (write 1))) (λ _ 1)))
+      (λ () (wrap-evt (thread (λ () (write 2))) (λ _ 2)))))
+  ]
 }
 
 @defproc[(evt-series [#:init init any/c (void)]
@@ -238,36 +280,82 @@ Processes are created explicitly by the @racket[process] function. Use
   Returns a fresh @racket-tech{synchronizable event} that becomes
   @racket-tech{ready for synchronization} when all events generated by
   @racket[make-evt]s have become @racket-tech{ready for synchronization}.
-  Calls each @racket[make-evt] in the order specified, with a single argument,
-  and immediately @racket[sync]s the result. Applies @racket[make-evt] first
-  to @racket[init], then to the @racket-tech{synchronization result} of the
-  previous event. The @racket-tech{synchronization result} of
-  @racket[evt-series] is the same as the @racket-tech{synchronization result}
-  of the last event generated.
+  Calls each @racket[make-evt] in the order specified and immediately
+  @racket[sync]s the result. Applies @racket[make-evt] first to @racket[init],
+  then to the @racket-tech{synchronization result} of the previous event. The
+  @racket-tech{synchronization result} is the same as the
+  @racket-tech{synchronization result} of the last event generated.
+
+  @examples[
+    #:eval neuron-evaluator
+    #:label "Example:"
+    (sync
+     (evt-series
+      #:init 1
+      (λ (x) (wrap-evt (thread (λ () (write x))) (λ _ (+ x 2))))
+      (λ (x) (wrap-evt (thread (λ () (write x))) (λ _ (+ x 4))))))
+  ]
 }
 
 @defproc[(evt-loop [#:init init any/c (void)]
                    [next-evt (-> any/c evt?)]) evt?]{
   Returns a fresh @racket-tech{synchronizable event} that is never
   @racket-tech{ready for synchronization}. Repeatedly calls @racket[next-evt]
-  with a single argument and immediately @racket[sync]s the result. Applies
-  @racket[next-evt] first to @racket[init], then to the
-  @racket-tech{synchronization result} of the previous event.
+  and immediately @racket[sync]s the result. Applies @racket[next-evt] first
+  to @racket[init], then to the @racket-tech{synchronization result} of the
+  previous event.
+
+  @examples[
+    #:eval neuron-evaluator
+    #:label "Example:"
+    (with-handlers ([number? values])
+      (sync
+       (evt-loop
+        #:init 1
+        (λ (x)
+          (if (> x 5) (raise x) (wrap-evt always-evt (λ _ (+ x 1))))))))
+  ]
 }
 
 @defproc[(server [proc (-> any/c any/c)]) process?]{
   Returns a @deftech{server} process. Applies @racket[proc] to each value
   taken and emits the result.
+
+  @examples[
+    #:eval neuron-evaluator
+    #:label "Example:"
+    (define π (server add1))
+    (call π 1)
+    (call π -1)
+  ]
 }
 
 @defproc[(sink [proc (-> any/c any)]) process?]{
   Returns a @deftech{sink} process. Applies @racket[proc] to each value taken
   and ignores the result.
+
+  @examples[
+    #:eval neuron-evaluator
+    #:label "Example:"
+    (define i 0)
+    (define π (sink (λ (x) (set! i (+ i x)))))
+    (give π 1)
+    (give π 2)
+    i
+  ]
 }
 
 @defproc[(source [proc (-> any/c)]) process?]{
-  Returns a @deftech{source} process. Calls @racket[proc] with no arguments
-  repeatedly and emits each result.
+  Returns a @deftech{source} process. Calls @racket[proc] repeatedly and emits
+  each result.
+
+  @examples[
+    #:eval neuron-evaluator
+    #:label "Example:"
+    (define π (source random))
+    (recv π)
+    (recv π)
+  ]
 }
 
 @defproc[(stream [snk process?] [src process?]) process?]{
@@ -280,16 +368,23 @@ Processes are created explicitly by the @racket[process] function. Use
     @item{@racket['sink] -- returns @racket[snk]}
     @item{@racket['source] -- returns @racket[src]}
   ]
+
+  @examples[
+    #:eval neuron-evaluator
+    #:label "Example:"
+    (define π-out (server add1))
+    (define π-in (sink (compose (curry give π-out) add1)))
+    (call (stream π-in π-out) 1)
+  ]
 }
 
 @defproc[(service [key-proc (-> any/c any/c)]
                   [#:on-drop on-drop (-> any/c any/c any) void]
-                  [#:on-service-stop on-svc-stop (-> any/c any/c any) void]
                   ) process?]{
   Returns a @deftech{service} process. Associates each value given with a key
   generated by applying @racket[key-proc] to the value. Emits generated keys.
-  Applies @racket[on-drop] to each key-value pair it drops. Applies
-  @racket[on-svc-stop] to every key-value pair when it stops.
+  Applies @racket[on-drop] to each key-value pair it drops. Drops every
+  key-value pair when it stops.
 
   Commands:
 
@@ -301,12 +396,39 @@ Processes are created explicitly by the @racket[process] function. Use
       @var[key]; returns @racket[#t] if @var[key] was in use, @racket[#f]
       otherwise.}
   ]
+
+  @examples[
+    #:eval neuron-evaluator
+    #:label "Example:"
+    (define π
+      (service string->symbol
+               #:on-drop (λ (k v) (writeln k))))
+    (define one (call π "one"))
+    (define two (call π "two"))
+    (define three (call π "three"))
+    (π 'drop two)
+    (stop π)
+  ]
 }
 
 @defproc[(simulator [proc (-> real? any)] [#:rate rate real? 10]) process?]{
   Returns a @deftech{simulator} process. Repeatedly calls @racket[proc] at a
-  frequency of @racket[rate] times per second. Applies @racket[proc] to a
-  single argument containing the number of milliseconds since the last call.
+  frequency of up to @racket[rate] times per second. Applies @racket[proc] to
+  the period corresponding to @racket[rate], in milliseconds.
+
+  @examples[
+    #:eval neuron-evaluator
+    #:label "Example:"
+    (define i 0)
+    (define t (current-inexact-milliseconds))
+    (wait
+     (simulator
+      (λ (p)
+        (printf "~a ~a\n" p (- (current-inexact-milliseconds) t))
+        (when (> i 2) (die))
+        (set! i (add1 i))
+        (sleep 0.25))))
+  ]
 }
 
 @defproc[(proxy [π process?]
@@ -314,14 +436,34 @@ Processes are created explicitly by the @racket[process] function. Use
                 [#:on-emit on-emit (-> any/c any/c) values]
                 ) process?]{
   Returns a @deftech{proxy} process. Forwards values to and from @racket[π].
-  Calls @racket[on-take] and @racket[on-emit] appropriately. Stops @racket[π]
-  when it stops. Dies when @racket[π] dies.
+  Calls @racket[on-take] and @racket[on-emit] at the appropriate times. Stops
+  @racket[π] when it stops. Dies when @racket[π] dies.
+
+  @examples[
+    #:eval neuron-evaluator
+    #:label "Example:"
+    (define π
+      (proxy (server (curry * 3))
+             #:on-take add1
+             #:on-emit sub1))
+    (call π 2)
+  ]
 }
 
 @defproc[(pipe [π process?] ...+) process?]{
   Returns a @deftech{pipe} process. Calls @racket[π]s in series, implicitly
   starting with @racket[take] and ending with @racket[emit]. Stops all
   @racket[π]s when it stops. Dies when any @racket[π] dies.
+
+  @examples[
+    #:eval neuron-evaluator
+    #:label "Example:"
+    (define π
+      (pipe (server add1)
+            (server (curry * 3))
+            (server sub1)))
+    (call π 2)
+  ]
 }
 
 @defproc[(bridge [π1 process?] [π2 process?]) process?]{
@@ -332,13 +474,22 @@ Processes are created explicitly by the @racket[process] function. Use
   Commands:
 
   @itemlist[
-    @item{@racket['process 1] -- returns @racket[π1]}
-    @item{@racket['process 2] -- returns @racket[π2]}
+    @item{@racket[1] -- returns @racket[π1]}
+    @item{@racket[2] -- returns @racket[π2]}
   ]
 
   A bridge will attempt to forward unrecognized commands---first to
   @racket[π1], then to @racket[π2]---before raising
   @racket[unhandled-command].
+
+  @examples[
+    #:eval neuron-evaluator
+    #:label "Example:"
+    (wait
+     (bridge
+      (server add1)
+      (process (λ () (emit 1) (writeln (take))))))
+  ]
 }
 
 @defproc[(managed [π process?]
@@ -349,17 +500,25 @@ Processes are created explicitly by the @racket[process] function. Use
                   ) process?]{
   Returns a @deftech{managed} process. Forwards non-@racket[eof] values to and
   from @racket[π]. Applies @racket[pre-take-eof], @racket[post-take-eof],
-  @racket[pre-emit-eof], and @racket[post-emit-eof] appropriately when
-  @racket[eof] is encountered. Stops @racket[π] when it stops. Dies when
-  @racket[π] dies.
+  @racket[pre-emit-eof], and @racket[post-emit-eof] at the appropriate times.
+  Stops @racket[π] when it stops. Dies when @racket[π] dies.
 }
 
 @defproc[(shutdown [π process?]) void?]{
   Gives @racket[eof] to @racket[π] and blocks until it dies.
+
+  @examples[
+    #:eval neuron-evaluator
+    #:label "Example:"
+    (define π (managed (server add1)))
+    (call π 1)
+    (shutdown π)
+    (dead? π)
+  ]
 }
 
 @defproc[(shutdown-evt [π process?]) evt?]{
   Gives @racket[eof] to @racket[π] and returns a @racket-tech{synchronizable
   event} that becomes @racket-tech{ready for synchronization} when @racket[π]
-  dies.
+  dies. The @racket-tech{synchronization result} is @racket[π].
 }
