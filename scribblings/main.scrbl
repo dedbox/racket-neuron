@@ -153,7 +153,7 @@ time environments and programs, and process-mobile software agents.
 
 @include-section["resources.scrbl"]
 
-@section[#:style '(grouper)]{Control Your Network}
+@section[#:style '(grouper)]{Operate Your Network}
 @subsection{Distributed Evaluation}
 @subsubsection{Portability}
 @subsubsection{Process Mobility}
