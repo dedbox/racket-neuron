@@ -1,94 +1,108 @@
 #lang racket/base
 
-(require neuron/concurrency
-         json
-         racket/contract/base
-         racket/splicing)
+(require
+ neuron/concurrency
+ neuron/data-flow/socket
+ json
+ racket/contract/base
+ racket/splicing)
 
-(require (for-syntax racket/base
-                     racket/syntax))
+(require
+ (for-syntax racket/base
+             racket/syntax))
 
 (provide
  define-codec
  (contract-out
   [parser/c contract?]
   [printer/c contract?]
-  [decoder/c contract?]
-  [encoder/c contract?]
   [codec/c contract?]
   [flushed (-> printer/c printer/c)]
-  [decoder (-> parser/c input-port? process?)]
-  [encoder (-> printer/c output-port? process?)]
-  [codec (-> parser/c printer/c input-port? output-port? process?)]
-  [make-codec-type (-> symbol? parser/c printer/c
-                       (values (-> input-port? process?)
-                               (-> output-port? process?)
-                               (-> input-port? output-port? process?)))]
+  [decoder (-> parser/c (-> socket? process?))]
+  [encoder (-> printer/c (-> socket? process?))]
+  [codec (-> parser/c printer/c (-> socket? process?))]
+  [make-codec-type
+   (-> symbol? parser/c printer/c
+       (values (-> input-port? process?)
+               (-> output-port? process?)
+               (-> input-port? output-port? process?)))]
   [line-parser parser/c]
   [line-printer printer/c]
-  [line-decoder (-> input-port? process?)]
-  [line-encoder (-> output-port? process?)]
-  [line-codec (-> input-port? output-port? process?)]
+  [line-decoder codec/c]
+  [line-encoder codec/c]
+  [line-codec codec/c]
   [sexp-parser parser/c]
   [sexp-printer printer/c]
-  [sexp-decoder (-> input-port? process?)]
-  [sexp-encoder (-> output-port? process?)]
-  [sexp-codec (-> input-port? output-port? process?)]
+  [sexp-decoder codec/c]
+  [sexp-encoder codec/c]
+  [sexp-codec codec/c]
   [json-parser parser/c]
   [json-printer printer/c]
-  [json-decoder (-> input-port? process?)]
-  [json-encoder (-> output-port? process?)]
-  [json-codec (-> input-port? output-port? process?)]))
+  [json-decoder codec/c]
+  [json-encoder codec/c]
+  [json-codec codec/c]))
 
-(define parser/c (-> input-port? any/c))
-(define printer/c (-> any/c output-port? any))
-(define decoder/c (-> parser/c input-port? process?))
-(define encoder/c (-> printer/c output-port? process?))
-(define codec/c (-> parser/c printer/c input-port? output-port? process?))
+(define parser/c (-> socket? any/c))
+(define printer/c (-> any/c socket? any))
+(define codec/c (-> socket? process?))
 
 (define (flushed prn)
-  (λ (v out-port)
-    (prn v out-port)
-    (flush-output out-port)))
+  (λ (v sock)
+    (prn v sock)
+    (flush-output sock)))
 
-(define (decoder prs in-port)
-  (start
-   (managed (process (λ () (sync (thread (λ ()
-                                           (with-handlers ([exn:fail? void])
-                                             (forever (emit (prs in-port))))))
-                                 (handle-evt (port-closed-evt in-port) die)))))
-   #:on-stop (λ () (close-input-port in-port))
-   #:command (λ vs
-               (cond [(equal? vs '(parser)) prs]
-                     [(equal? vs '(input-port)) in-port]
-                     [else unhandled]))))
+(define (decoder prs)
+  (λ (sock)
+    (start
+     (managed (process
+               (λ ()
+                 (sync
+                  (thread (λ ()
+                            (with-handlers ([exn:fail? void])
+                              (forever (emit (prs sock))))))
+                  (handle-evt sock (λ _ (emit eof)))))))
+     #:on-stop (λ () (close-socket sock))
+     #:command (λ vs
+                 (cond [(equal? vs '(parser)) prs]
+                       [(equal? vs '(socket)) sock]
+                       [else unhandled])))))
 
-(define (encoder prn out-port)
-  (start
-   (managed (process (λ () (sync (thread (λ ()
-                                           (with-handlers ([exn:fail? void])
-                                             (forever (prn (take) out-port)))))
-                                 (handle-evt (port-closed-evt out-port) die)))))
-   #:on-stop (λ () (close-output-port out-port))
-   #:command (λ vs
-               (cond [(equal? vs '(printer)) prn]
-                     [(equal? vs '(output-port)) out-port]
-                     [else unhandled]))))
+(define (encoder prn)
+  (λ (sock)
+    (start
+     (managed (process
+               (λ ()
+                 (sync
+                  (thread (λ ()
+                            (with-handlers ([exn:fail? void])
+                              (forever (prn (take) sock)))))
+                  (handle-evt sock die)))))
+     #:on-stop (λ () (close-socket sock))
+     #:command (λ vs
+                 (cond [(equal? vs '(printer)) prn]
+                       [(equal? vs '(socket)) sock]
+                       [else unhandled])))))
 
-(define (codec prs prn in-port out-port)
-  (define dec (decoder prs in-port))
-  (define enc (encoder prn out-port))
-  (start (stream enc dec)
-         #:on-stop (λ () (stop enc) (stop dec))
-         #:command (λ vs
-                     (cond [(equal? vs '(decoder)) dec]
-                           [(equal? vs '(encoder)) enc]
-                           [else unhandled]))))
+(define (codec prs prn)
+  (define make-decoder (decoder prs))
+  (define make-encoder (encoder prn))
+  (λ (sock)
+    (define dec (make-decoder sock))
+    (define enc (make-encoder sock))
+    (start
+     (stream enc dec)
+     #:on-stop (λ () (stop enc) (stop dec))
+     #:command (λ vs
+                 (cond [(equal? vs '(decoder)) dec]
+                       [(equal? vs '(encoder)) enc]
+                       [(equal? vs '(socket)) sock]
+                       [else unhandled])))))
 
 (define (make-codec-type name prs prn)
-  (values (λ (in-port) (decoder prs in-port))
-          (λ (out-port) (encoder prn out-port))
-          (λ (in-port out-port) (codec prs prn in-port out-port))))
+  (values
+   (decoder prs)
+   (encoder prn)
+   (codec prs prn)))
 
 (define-syntax (define-codec stx)
   (syntax-case stx ()
@@ -112,109 +126,117 @@
 (define-codec sexp read (flushed writeln))
 (define-codec json
   read-json
-  (λ (v out) (write-json v out) (newline out) (flush-output out)))
+  (flushed (λ (v out) (write-json v out) (newline out))))
 
 (module+ test
   (require rackunit)
 
   (test-case
-    "A decoder applies prs to in-port and emits the result."
-    (check = (recv (decoder read (open-input-string "123"))) 123))
+    "A decoder applies prs to sock and emits the result."
+    (check = (recv ((decoder read) (string-socket #:in "123"))) 123))
 
   (test-case
     "A decoder stops when prs returns eof."
-    (define dec (decoder read (open-input-string "123")))
+    (define dec ((decoder read) (string-socket #:in "123")))
     (check = (recv dec) 123)
     (check-pred eof-object? (recv dec))
-    (check-pred dead? dec))
-
-  (test-case
-    "A decoder closes in-port when it stops."
-    (define dec (decoder read (open-input-string "1 2 3")))
-    (stop dec)
-    (check-pred port-closed? (dec 'input-port)))
-
-  (test-case
-    "A decoder dies when in-port closes."
-    (define dec (decoder read (open-input-string "")))
     (sync dec)
-    (check-pred port-closed? (dec 'input-port))
     (check-pred dead? dec))
 
   (test-case
-    "decoder command 'parser returns prs."
-    (check equal? ((decoder read (open-input-string "")) 'parser) read))
+    "A decoder closes sock when it stops."
+    (define dec ((decoder read) (null-socket)))
+    (stop dec)
+    (check-pred socket-closed? (dec 'socket)))
 
   (test-case
-    "decoder command 'input-port returns in-port."
-    (define in-port (open-input-string ""))
-    (check equal? ((decoder read in-port) 'input-port) in-port))
+    "A decoder dies when sock closes."
+    (define dec ((decoder read) (null-socket)))
+    (check-pred eof-object? (recv dec))
+    (sync dec)
+    (check-pred socket-closed? (dec 'socket))
+    (check-pred dead? dec))
 
   (test-case
-    "An encoder takes a value and applies prn to it and out-port."
+    "decoder command 'parser returns a parser."
+    (check eq? (((decoder read) (null-socket)) 'parser) read))
+
+  (test-case
+    "decoder command 'socket returns a socket."
+    (define sock (null-socket))
+    (check eq? (((decoder read) sock) 'socket) sock))
+
+  (test-case
+    "An encoder takes a value and prints it to sock."
     (define done (make-semaphore 0))
-    (define enc (encoder (λ (v out) (write v out) (semaphore-post done))
-                         (open-output-string)))
+    (define enc ((encoder (λ (v sock) (write v sock) (semaphore-post done)))
+                 (string-socket #:out #t)))
     (give enc 123)
     (semaphore-wait done)
-    (check equal? (get-output-string (enc 'output-port)) "123"))
+    (check equal? (get-output-string (enc 'socket)) "123"))
 
   (test-case
     "An encoder stops when given eof."
-    (define enc (encoder write (open-output-string)))
+    (define enc ((encoder write) (null-socket)))
     (give enc eof)
     (sync enc)
     (check-pred dead? enc))
 
   (test-case
-    "An encoder closes out-port when it stops."
-    (define enc (encoder write (open-output-string)))
+    "An encoder closes sock when it stops."
+    (define enc ((encoder write) (null-socket)))
     (stop enc)
-    (check-pred port-closed? (enc 'output-port)))
+    (check-pred socket-closed? (enc 'socket)))
 
   (test-case
-    "An encoder dies when out-port closes."
-    (define enc (encoder write (open-output-string)))
-    (close-output-port (enc 'output-port))
+    "An encoder dies when sock closes."
+    (define enc ((encoder write) (null-socket)))
+    (close-socket (enc 'socket))
     (sync enc)
     (check-pred dead? enc))
 
   (test-case
     "encoder command 'printer returns prn."
-    (check equal? ((encoder write (open-output-string)) 'printer) write))
+    (check eq? (((encoder write) (null-socket)) 'printer) write))
 
   (test-case
-    "encoder command 'output-port returns out-port."
-    (define out-port (open-output-string))
-    (check equal? ((encoder write out-port) 'output-port) out-port))
+    "encoder command 'socket returns sock."
+    (define sock (null-socket))
+    (check eq? (((encoder write) sock) 'socket) sock))
 
   (test-case
     "A codec is a stream."
-    (define cdc (codec read write (open-input-string "") (open-output-string)))
+    (define cdc ((codec read write) (null-socket)))
     (check-pred process? cdc)
     (check-pred process? (cdc 'sink))
     (check-pred process? (cdc 'source)))
 
   (test-case
-    "A codec source is a decoder on prs and in-port."
-    (define cdc (codec read write (open-input-string "") (open-output-string)))
+    "A codec's source is a decoder on prs and sock."
+    (define sock (null-socket))
+    (define cdc ((codec read write) sock))
     (check-pred process? (cdc 'source))
-    (check-pred procedure? ((cdc 'source) 'parser))
-    (check-pred input-port? ((cdc 'source) 'input-port)))
+    (check eq? ((cdc 'source) 'parser) read)
+    (check eq? ((cdc 'source) 'socket) sock))
 
   (test-case
-    "A codec sink is an encoder on prn and out-port."
-    (define cdc (codec read write (open-input-string "") (open-output-string)))
+    "A codec's sink is an encoder on prn and sock."
+    (define sock (null-socket))
+    (define cdc ((codec read write) sock))
     (check-pred process? (cdc 'sink))
-    (check-pred procedure? ((cdc 'sink) 'printer))
-    (check-pred output-port? ((cdc 'sink) 'output-port)))
+    (check eq? ((cdc 'sink) 'printer) write)
+    (check eq? ((cdc 'sink) 'socket) sock))
 
   (test-case
     "codec command 'decoder returns a decoder."
-    (define cdc (codec read write (open-input-string "") (open-output-string)))
-    (check equal? (cdc 'decoder) (cdc 'source)))
+    (define sock (null-socket))
+    (define dec (((codec read write) sock) 'decoder))
+    (check eq? (dec 'parser) read)
+    (check eq? (dec 'socket) sock))
 
   (test-case
     "codec command 'encoder returns an encoder."
-    (define cdc (codec read write (open-input-string "") (open-output-string)))
-    (check equal? (cdc 'encoder) (cdc 'sink))))
+    (define sock (null-socket))
+    (define dec (((codec read write) sock) 'encoder))
+    (check eq? (dec 'printer) write)
+    (check eq? (dec 'socket) sock)))
