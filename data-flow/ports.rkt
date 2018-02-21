@@ -1,71 +1,81 @@
 #lang racket/base
 
-(require neuron/concurrency
-         racket/contract/base
-         racket/function)
+(require racket/contract/base
+         racket/port)
 
 (provide
  (contract-out
-  [port-sink (-> output-port? process?)]
-  [port-source (-> exact-nonnegative-integer? input-port? process?)]
-  [port-stream (-> exact-nonnegative-integer? input-port? output-port?
-                   process?)]
-  [byte-sink (-> process?)]
-  [string-sink (-> process?)]
-  [file-sink (->* (path-string?)
-                  (#:mode (or/c 'binary 'text)
-                   #:exists (or/c 'error 'append 'update 'can-update
-                                  'replace 'truncate
-                                  'must-truncate 'truncate/replace))
-                  process?)]
-  [file-source (->* (path-string? exact-nonnegative-integer?)
-                    (#:mode (or/c 'binary 'text))
-                    process?)]
-  [directory-source (->* () (path-string?) process?)]))
+  [struct socket
+    ([in-port input-port?]
+     [out-port output-port?])]
+  [close-socket (-> socket? void?)]
+  [socket-closed? (-> socket? boolean?)]
+  [null-socket (-> socket?)]
+  [byte-socket (->* () (#:in bytes? #:out boolean?) socket?)]
+  [string-socket (->* () (#:in string? #:out boolean?) socket?)]
+  [file-socket
+   (->* ()
+        (#:in (or/c path-string? #f)
+         #:in-mode (or/c 'binary 'text)
+         #:out (or/c path-string? #f)
+         #:out-mode (or/c 'binary 'text)
+         #:exists (or/c 'error 'append 'update 'can-update
+                        'replace 'truncate
+                        'must-truncate 'truncate/replace))
+        socket?)]))
 
-(define (port-sink out-port)
-  (start (managed (sink (λ (bs)
-                          (with-handlers ([exn:fail? die])
-                            (write-bytes bs out-port)))))
-         #:on-stop (λ () (close-output-port out-port))
-         #:command
-         (λ vs (if (equal? vs '(output-port)) out-port unhandled-command))))
+(struct socket
+  (in-port out-port)
+  #:property prop:input-port (struct-field-index in-port)
+  #:property prop:output-port (struct-field-index out-port)
+  #:property prop:evt
+  (λ (sock)
+    (choice-evt
+      (handle-evt (port-closed-evt (socket-in-port sock))
+                  (λ _ (close-output-port sock)))
+      (handle-evt (port-closed-evt (socket-out-port sock))
+                  (λ _ (close-input-port sock))))))
 
-(define (port-source amt in-port)
-  (start (managed (source (λ ()
-                            (with-handlers ([exn:fail? die])
-                              (read-bytes amt in-port)))))
-         #:on-stop (λ () (close-input-port in-port))
-         #:command (λ vs
-                     (if (equal? vs '(input-port)) in-port unhandled-command))))
+(define (close-socket sock)
+  (close-input-port sock)
+  (close-output-port sock)
+  (sync sock))
 
-(define (port-stream amt in-port out-port)
-  (stream (port-sink out-port) (port-source amt in-port)))
+(define (socket-closed? sock)
+  (and
+   (port-closed? (socket-in-port sock))
+   (port-closed? (socket-out-port sock))))
 
-(define (byte-sink)
-  (define out-port (open-output-bytes))
-  (define (emit-next-bytes . _)
-    (emit (get-output-bytes out-port #t)))
-  (start
-   (managed (sink (curryr display out-port)) #:on-take-eof emit-next-bytes)
-   #:on-stop emit-next-bytes))
+(define (null-socket)
+  (socket
+   (open-input-string "")
+   (open-output-nowhere)))
 
-(define (string-sink)
-  (define out-port (open-output-bytes))
-  (define (emit-next-string . _)
-    (emit (bytes->string/utf-8 (get-output-bytes out-port #t) #\?)))
-  (start
-   (managed (sink (curryr display out-port)) #:on-take-eof emit-next-string)
-   #:on-stop emit-next-string))
+(define (byte-socket #:in [bstr #""]
+                     #:out [out? #f])
+  (socket
+   (open-input-bytes bstr)
+   (if out?
+       (open-output-bytes)
+       (open-output-nowhere))))
 
-(define (file-sink path
-                   #:mode [mode-flag 'binary]
-                   #:exists [exists-flag 'error])
-  (port-sink (open-output-file path #:mode mode-flag #:exists exists-flag)))
+(define (string-socket #:in [str ""]
+                       #:out [out? #f])
+  (socket
+   (open-input-string str)
+   (if out?
+       (open-output-string)
+       (open-output-nowhere))))
 
-(define (file-source path amt
-                     #:mode [mode-flag 'binary])
-  (port-source amt (open-input-file path #:mode mode-flag)))
-
-(define (directory-source [path (current-directory)])
-  (process (λ () (for-each emit (directory-list path)))))
+(define (file-socket #:in [in-path #f]
+                     #:in-mode [in-mode-flag 'binary]
+                     #:out [out-path #f]
+                     #:out-mode [out-mode-flag 'binary]
+                     #:exists [exists-flag 'error])
+  (socket
+   (if in-path
+       (open-input-file in-path #:mode in-mode-flag)
+       (open-input-bytes #""))
+   (if out-path
+       (open-output-file out-path #:mode out-mode-flag #:exists exists-flag)
+       (open-output-nowhere))))

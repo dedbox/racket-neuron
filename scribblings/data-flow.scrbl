@@ -6,112 +6,88 @@
 
 @(defmodule neuron/data-flow #:packages ("neuron"))
 
-@section{Input and Output}
+@section{Serial Communication}
 
-@defproc[(port-sink [out-port output-port?]) process?]{
-  Returns a @tech{sink} that writes byte strings to @racket[out-port]. Stops
-  when given @racket[eof]. Closes @racket[out-port] when it stops. Dies when
-  @racket[out-port] closes.
+A @deftech{socket} is the local end of a bi-directional serial communications
+channel. Each socket holds an @racket-tech{input port} and an
+@racket-tech{output port}.
 
-  Commands:
+A socket can be used as a @racket-tech{synchronizable event}. A socket is
+@racket-tech{ready for synchronization} when the ports it holds have closed.
+Sockets do not support half-open connections---when either port closes, the
+other port is closed immediately.
 
-  @itemlist[
-    @item{@racket['output-port] -- returns @racket[out-port]}
-  ]
+@defproc[(socket? [v any/c]) boolean?]{
+  Returns @racket[#t] if @racket[v] is a @racket[socket], @racket[#f]
+  otherwise.
+}
+
+@defproc[(socket [in-port input-port?] [out-port output-port?]) socket?]{
+  Returns a @tech{socket}. Serves as @racket[out-port] when used as an
+  @racket-tech{output port}, and as @racket[in-port] when used as an
+  @racket-tech{input port} or with procedures that take both kinds, such as
+  @racket[file-position].
+}
+
+@defproc[(close-socket [sock socket?]) void?]{
+  Closes the ports held by @racket[sock]. If the ports are already closed,
+  @racket[close-socket] has no effect.
+}
+
+@defproc[(socket-closed? [sock socket?]) boolean?]{
+  Returns @racket{#t} if the ports held by @racket[sock] are closed,
+  @racket[#f] otherwise.
+}
+
+@defproc[(null-socket) socket?]{
+  Returns a @tech{socket} that ignores all input and always outputs
+  @racket[eof].
+}
+
+@deftogether[(
+  @defproc[(byte-socket [#:in str bytes? #""]
+                        [#:out out? boolean? #f]) socket?]
+  @defproc[(string-socket [#:in str string? ""]
+                          [#:out out? boolean? #f]) socket?]
+)]{
+  Returns a @tech{socket} that inputs from @racket[str] and, if @racket[out?]
+  is @racket[#t], accumulates output in a fresh output @racket-tech{string
+  port}.
 
   @examples[
     #:eval neuron-evaluator
-    (define snk (port-sink (open-output-string)))
-    (for-each (curry give snk) (list #"123" #"ab" eof))
-    (get-output-string (snk 'output-port))
+    #:label "Example:"
+    (define sock (string-socket #:in "123" #:out #t))
+    (read sock)
+    (write 'abc sock)
+    (get-output-string sock)
   ]
 }
 
-@defproc[(port-source [amt exact-nonnegative-integer?]
-                      [in-port input-port?]
-                      ) process?]{
-  Returns a @tech{source} that reads byte strings from @racket[in-port] of
-  length up to @racket[amt] bytes. Stops when @racket[in-port] reaches
-  @racket[eof]. Dies when @racket[in-port] closes.
+@defproc[(file-socket
+          [#:in in-path (or/c path-string? #f) #f]
+          [#:in-mode in-mode-flag (or/c 'binary 'text) 'binary]
+          [#:out out-path (or/c path-string? #f) #f]
+          [#:out-mode out-mode-flag (or/c 'binary 'text) 'binary]
+          [#:exists exists-flag
+                    (or/c 'error 'append 'update 'can-update
+                          'replace 'truncate
+                          'must-truncate 'truncate/replace)]) socket?]{
+  Returns a @tech{socket} that opens the files specified by @racket[in-path]
+  and @racket[out-path] for input and output, respectively. If
+  @racket[in-path] is @racket[#f], then all input is ignored. If
+  @racket[out-path] is @racket[#f], then only @racket[eof] is output. If both
+  are @racket[#f], then the @racket[file-socket] call is equivalent to
+  @racket[(null-socket)].
 
-  Commands:
-
-  @itemlist[
-    @item{@racket['input-port] -- returns @racket[in-port]}
-  ]
+  See @racket[open-input-file] for details on @racket[in-mode-flag], and
+  @racket[open-output-file] for details on @racket[out-mode-flag] and
+  @racket[exists-flag].
 
   @examples[
     #:eval neuron-evaluator
-    (define src (port-source 3 (open-input-bytes #"123ab")))
-    (recv src)
-    (recv src)
-    (recv src)
-  ]
-}
-
-@defproc[(port-stream [amt exact-nonnegative-integer?]
-                      [in-port input-port?]
-                      [out-port output-port?]
-                      ) process?]{
-  Returns a @tech{stream} with source @racket[(port-source amt in-port)] and
-  sink @racket[(port-sink out-port)].
-}
-
-@defproc[(byte-sink) process?]{
-  Returns a @tech{sink} that accumulates byte strings. Emits accumulated bytes
-  when it is given @racket[eof] and when it stops.
-
-  @examples[
-    #:eval neuron-evaluator
-    (define snk (byte-sink))
-    (for-each (curry give snk) (list #"abc" #"123" eof))
-    (recv snk)
-  ]
-}
-
-@defproc[(string-sink) process?]{
-  Returns a @tech{sink} that accumulates strings. Emits accumulated string
-  when it is given @racket[eof] and when it stops.
-
-  @examples[
-    #:eval neuron-evaluator
-    (define snk (string-sink))
-    (for-each (curry give snk) (list "λx" ".x" eof))
-    (recv snk)
-  ]
-}
-
-@defproc[
-  (file-sink [path path-string?]
-             [#:mode mode-flag (or/c 'binary 'text) 'binary]
-             [#:exists exists-flag
-               (or/c 'error 'append 'update 'can-update
-                     'replace 'truncate
-                     'must-truncate 'truncate/replace) 'error]
-             ) process?]{
-  Returns a @racket[port-sink] for writing to the file specified by
-  @racket[path]. The @racket[mode-flag] and @racket[exists-flag] are the same
-  as for @racket[open-output-file].
-}
-
-@defproc[
-  (file-source [path path-string?]
-               [amt exact-nonnegative-integer?]
-               [#:mode mode-flag (or/c 'binary 'text) 'binary]) process?]{
-  Returns a @racket[port-source] for reading from the file specified by
-  @racket[path]. The @racket[mode-flag] is the same as for
-  @racket[open-input-file].
-}
-
-@defproc[(directory-source [path path-string? (current-directory)]) process?]{
-  Returns a @racket[source] for the names of all files and directories in the
-  directory specified by @racket[path]. Emits names in lexicgraphic order and
-  then dies.
-
-  @examples[
-    #:eval neuron-evaluator
-    (define π (directory-source))
-    (while (alive? π) (displayln (recv π)))
+    #:label "Example:"
+    (read-line (file-socket #:in "info.rkt"))
   ]
 }
 
