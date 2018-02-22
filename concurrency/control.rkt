@@ -21,12 +21,18 @@
   [sink (-> (-> any/c any) process?)]
   [source (-> (-> any/c) process?)]
   [stream (-> process? process? process?)]
-  [service (->* ((-> any/c any/c)) (#:on-drop (-> any/c any/c any)) process?)]
-  [simulator (->* ((-> real? any)) (#:rate real?) process?)]
   [proxy (->* (process?)
               (#:on-take (-> any/c any/c)
                #:on-emit (-> any/c any/c))
               process?)]
+  [proxy-to-evt (->* (process?) (#:on-take (-> any/c any/c)) evt?)]
+  [proxy-from-evt (->* (process?) (#:on-emit (-> any/c any/c)) evt?)]
+  [proxy-evt (->* (process?)
+                  (#:on-take (-> any/c any/c)
+                   #:on-emit (-> any/c any/c))
+                  evt?)]
+  [service (->* ((-> any/c any/c)) (#:on-drop (-> any/c any/c any)) process?)]
+  [simulator (->* ((-> real? any)) (#:rate real?) process?)]
   [pipe (-> process? process? ... process?)]
   [bridge (-> process? process? process?)]
   [managed (->* (process?)
@@ -102,6 +108,22 @@
                            [(equal? vs '(source)) src]
                            [else unhandled]))))
 
+(define (proxy π #:on-take [on-take values] #:on-emit [on-emit values])
+  (start
+   (process (λ () (sync (proxy-evt π #:on-take on-take #:on-emit on-emit))))
+   #:on-stop (λ () (stop π))
+   #:command (λ vs (apply π vs))))
+
+(define (proxy-to-evt π #:on-take [on-take values])
+  (evt-loop (λ _ (replace-evt (take-evt) (λ (v) (give-evt π (on-take v)))))))
+
+(define (proxy-from-evt π #:on-emit [on-emit values])
+  (evt-loop (λ _ (replace-evt (recv-evt π) (λ (v) (emit-evt (on-emit v)))))))
+
+(define (proxy-evt π #:on-take [on-take values] #:on-emit [on-emit values])
+  (choice-evt (proxy-to-evt π #:on-take on-take)
+              (proxy-from-evt π #:on-emit on-emit)
+              π))
 (define (service key-proc #:on-drop [on-drop void])
   (define pairs (make-hash))
   (define (drop key)
@@ -137,16 +159,6 @@
                (set! timestamp (+ timestamp period))
                (sync (alarm-evt timestamp))
                (proc period)))))
-
-(define (proxy π
-               #:on-take [on-take values]
-               #:on-emit [on-emit values])
-  (start (process (λ ()
-                    (sync (thread (λ () (forever (give π (on-take (take))))))
-                          (thread (λ () (forever (emit (on-emit (recv π))))))
-                          (handle-evt π die))))
-         #:on-stop (λ () (stop π))
-         #:command (λ vs (apply π vs))))
 
 (define (pipe . πs)
   (start

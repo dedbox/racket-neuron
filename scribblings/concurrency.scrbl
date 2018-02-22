@@ -378,6 +378,60 @@ Processes are created explicitly by the @racket[process] function. Use
   ]
 }
 
+@defproc[(proxy [π process?]
+                [#:on-take on-take (-> any/c any/c) values]
+                [#:on-emit on-emit (-> any/c any/c) values]
+                ) process?]{
+  Returns a @deftech{proxy} process. Forwards values to and from @racket[π].
+  Calls @racket[on-take] and @racket[on-emit] at the appropriate times. Stops
+  @racket[π] when it stops. Dies when @racket[π] dies.
+
+  @examples[
+    #:eval neuron-evaluator
+    #:label "Example:"
+    (define π
+      (proxy (server (curry * 3))
+             #:on-take add1
+             #:on-emit sub1))
+    (call π 2)
+  ]
+}
+
+@defproc[(proxy-to-evt [π process?]
+                       [#:on-take on-take (-> any/c any/c) values]
+                       ) evt?]{
+  Returns a constant @racket-tech{synchronizable event} that takes a value and
+  applies @racket[on-take] to it, then gives the result to @racket[π]. Becomes
+  @racket-tech{ready for synchronization} when @racket[π] either accepts the
+  transformed value or dies. The @racket-tech{synchronization result} is
+  @racket[#t] if @racket[π] accepts the value, @racket[#f] otherwise.
+}
+
+@defproc[(proxy-from-evt [π process?]
+                         [#:on-emit on-emit (-> any/c any/c) values]
+                         ) evt?]{
+  Returns a constant @racket-tech{synchronizable event} that receives a value
+  from @racket[π] and applies @racket[on-emit] to it, then emits the result.
+  Becomes @racket-tech{ready for synchronization} when another process accepts
+  the emitted value.
+}
+
+@defproc[(proxy-evt [π process?]
+                    [#:on-take on-take (-> any/c any/c) values]
+                    [#:on-emit on-emit (-> any/c any/c) values])
+         evt?]{
+  Returns a constant @racket-tech{synchronizable event} equivalent to
+
+  @racketblock[
+    (choice-evt
+     (proxy-to-evt π #:on-take on-take)
+     (proxy-from-evt π #:on-emit on-emit))
+  ]
+
+  Becomes @racket-tech{ready for synchronization} when @racket[π] is dead. The
+  @racket-tech{synchronization result} is @racket[π].
+}
+
 @defproc[(service [key-proc (-> any/c any/c)]
                   [#:on-drop on-drop (-> any/c any/c any) void]
                   ) process?]{
@@ -428,25 +482,6 @@ Processes are created explicitly by the @racket[process] function. Use
         (when (> i 2) (die))
         (set! i (add1 i))
         (sleep 0.25))))
-  ]
-}
-
-@defproc[(proxy [π process?]
-                [#:on-take on-take (-> any/c any/c) values]
-                [#:on-emit on-emit (-> any/c any/c) values]
-                ) process?]{
-  Returns a @deftech{proxy} process. Forwards values to and from @racket[π].
-  Calls @racket[on-take] and @racket[on-emit] at the appropriate times. Stops
-  @racket[π] when it stops. Dies when @racket[π] dies.
-
-  @examples[
-    #:eval neuron-evaluator
-    #:label "Example:"
-    (define π
-      (proxy (server (curry * 3))
-             #:on-take add1
-             #:on-emit sub1))
-    (call π 2)
   ]
 }
 
