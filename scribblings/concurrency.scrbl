@@ -330,54 +330,6 @@ Processes are created explicitly by the @racket[process] function. Use
   ]
 }
 
-@defproc[(sink [proc (-> any/c any)]) process?]{
-  Returns a @deftech{sink} process. Applies @racket[proc] to each value taken
-  and ignores the result.
-
-  @examples[
-    #:eval neuron-evaluator
-    #:label "Example:"
-    (define i 0)
-    (define π (sink (λ (x) (set! i (+ i x)))))
-    (give π 1)
-    (give π 2)
-    i
-  ]
-}
-
-@defproc[(source [proc (-> any/c)]) process?]{
-  Returns a @deftech{source} process. Calls @racket[proc] repeatedly and emits
-  each result.
-
-  @examples[
-    #:eval neuron-evaluator
-    #:label "Example:"
-    (define π (source random))
-    (recv π)
-    (recv π)
-  ]
-}
-
-@defproc[(stream [snk process?] [src process?]) process?]{
-  Returns a @deftech{stream} process. Forwards to @racket[snk] and from
-  @racket[src]. Stops @racket[snk] and @racket[src] when it stops. Dies when
-  both @racket[snk] and @racket[src] die.
-
-  Commands:
-  @itemlist[
-    @item{@racket['sink] -- returns @racket[snk]}
-    @item{@racket['source] -- returns @racket[src]}
-  ]
-
-  @examples[
-    #:eval neuron-evaluator
-    #:label "Example:"
-    (define π-out (server add1))
-    (define π-in (sink (compose (curry give π-out) add1)))
-    (call (stream π-in π-out) 1)
-  ]
-}
-
 @defproc[(proxy [π process?]
                 [#:on-take on-take (-> any/c any/c) values]
                 [#:on-emit on-emit (-> any/c any/c) values]
@@ -430,6 +382,54 @@ Processes are created explicitly by the @racket[process] function. Use
 
   Becomes @racket-tech{ready for synchronization} when @racket[π] is dead. The
   @racket-tech{synchronization result} is @racket[π].
+}
+
+@defproc[(sink [proc (-> any/c any)]) process?]{
+  Returns a @deftech{sink} process. Applies @racket[proc] to each value taken
+  and ignores the result.
+
+  @examples[
+    #:eval neuron-evaluator
+    #:label "Example:"
+    (define i 0)
+    (define π (sink (λ (x) (set! i (+ i x)))))
+    (give π 1)
+    (give π 2)
+    i
+  ]
+}
+
+@defproc[(source [proc (-> any/c)]) process?]{
+  Returns a @deftech{source} process. Calls @racket[proc] repeatedly and emits
+  each result.
+
+  @examples[
+    #:eval neuron-evaluator
+    #:label "Example:"
+    (define π (source random))
+    (recv π)
+    (recv π)
+  ]
+}
+
+@defproc[(stream [snk process?] [src process?]) process?]{
+  Returns a @deftech{stream} process. Forwards to @racket[snk] and from
+  @racket[src]. Stops @racket[snk] and @racket[src] when it stops. Dies when
+  both @racket[snk] and @racket[src] die.
+
+  Commands:
+  @itemlist[
+    @item{@racket['sink] -- returns @racket[snk]}
+    @item{@racket['source] -- returns @racket[src]}
+  ]
+
+  @examples[
+    #:eval neuron-evaluator
+    #:label "Example:"
+    (define π-out (server add1))
+    (define π-in (sink (compose (curry give π-out) add1)))
+    (call (stream π-in π-out) 1)
+  ]
 }
 
 @defproc[(service [key-proc (-> any/c any/c)]

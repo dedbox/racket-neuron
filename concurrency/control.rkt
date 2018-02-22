@@ -18,9 +18,6 @@
                    evt?)]
   [evt-loop (->* ((-> any/c evt?)) (#:init any/c) evt?)]
   [server (-> (-> any/c any/c) process?)]
-  [sink (-> (-> any/c any) process?)]
-  [source (-> (-> any/c) process?)]
-  [stream (-> process? process? process?)]
   [proxy (->* (process?)
               (#:on-take (-> any/c any/c)
                #:on-emit (-> any/c any/c))
@@ -31,6 +28,12 @@
                   (#:on-take (-> any/c any/c)
                    #:on-emit (-> any/c any/c))
                   evt?)]
+  [sink (-> (-> any/c any) process?)]
+  [source (-> (-> any/c) process?)]
+  [stream (->* (process? process?)
+               (#:on-take (-> any/c any/c)
+                #:on-emit (-> any/c any/c))
+               process?)]
   [service (->* ((-> any/c any/c)) (#:on-drop (-> any/c any/c any)) process?)]
   [simulator (->* ((-> real? any)) (#:rate real?) process?)]
   [pipe (-> process? process? ... process?)]
@@ -91,23 +94,6 @@
 (define (server proc)
   (process (λ () (forever (emit (proc (take)))))))
 
-(define (sink proc)
-  (process (λ () (forever (proc (take))))))
-
-(define (source proc)
-  (process (λ () (forever (emit (proc))))))
-
-(define (stream snk src)
-  (start (process (λ ()
-                    (sync (thread (λ () (forever (give snk (take)))))
-                          (thread (λ () (forever (emit (recv src)))))
-                          (handle-evt (evt-set snk src) die))))
-         #:on-stop (λ () (stop snk) (stop src))
-         #:command (λ vs
-                     (cond [(equal? vs '(sink)) snk]
-                           [(equal? vs '(source)) src]
-                           [else unhandled]))))
-
 (define (proxy π #:on-take [on-take values] #:on-emit [on-emit values])
   (start
    (process (λ () (sync (proxy-evt π #:on-take on-take #:on-emit on-emit))))
@@ -124,6 +110,26 @@
   (choice-evt (proxy-to-evt π #:on-take on-take)
               (proxy-from-evt π #:on-emit on-emit)
               π))
+
+(define (sink proc)
+  (process (λ () (forever (proc (take))))))
+
+(define (source proc)
+  (process (λ () (forever (emit (proc))))))
+
+(define (stream snk src #:on-take [on-take values] #:on-emit [on-emit values])
+  (start
+   (process (λ ()
+              (sync
+               (choice-evt
+                (proxy-to-evt snk #:on-take on-take)
+                (proxy-from-evt src #:on-emit on-emit)
+                (handle-evt (evt-set snk src) die)))))
+   #:on-stop (λ () (stop snk) (stop src))
+   #:command (λ vs
+               (cond [(equal? vs '(sink)) snk]
+                     [(equal? vs '(source)) src]
+                     [else unhandled]))))
 (define (service key-proc #:on-drop [on-drop void])
   (define pairs (make-hash))
   (define (drop key)
