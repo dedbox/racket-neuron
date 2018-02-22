@@ -108,8 +108,8 @@
     (and (hash-has-key? pairs key)
          (let ([val (hash-ref pairs key)])
            (hash-remove! pairs key)
-           (on-drop key val)
-           #t)))
+           (on-drop key val))
+         #t))
   (start
    (process
     (λ ()
