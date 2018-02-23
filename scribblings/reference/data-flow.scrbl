@@ -1,6 +1,6 @@
 #lang scribble/doc
 
-@(require "base.rkt")
+@(require "../base.rkt")
 
 @title{Data Flow}
 
