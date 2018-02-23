@@ -321,63 +321,39 @@ the following procedures:
 
 @section{Networking}
 
-@defproc[(tcp-codec [make-codec (-> input-port? output-port? process?)]
-                    [in-port input-port?]
-                    [out-port output-port?]
-                    ) process?]{
-  Returns a @racket[codec] created by applying @racket[make-codec] to
-  @racket[in-port] and @racket[out-port]. Dies when either side of the
-  connection closes.
+A @deftech{TCP socket} is a @tech{socket} with a TCP address.
 
-  Additional commands:
-
-  @itemlist[
-    @item{@racket['address] -- returns the full address of the connection}
-    @item{@racket['local-address] -- returns the local address}
-    @item{@racket['remote-address] -- returns the remote address}
-  ]
+@defproc[(tcp-socket? [v any/c]) boolean?]{
+  Returns @racket[#t] if @racket[v] is a @tech{TCP socket}, @racket[#f]
+  otherwise.
 }
 
-@defproc[(tcp-client [make-codec (-> input-port? output-port? process?)]
-                     [hostname string?]
+@defproc[(tcp-socket [in-port input-port?]
+                     [out-port output-port?]) tcp-socket?]{
+  Returns a @tech{TCP socket}.
+}
+
+@defproc[(tcp-socket-address [sock tcp-socket?]) (list/c string? port-number?
+                                                         string? port-number?)]{
+  Returns the address of @tech{TCP socket} @racket[sock].
+}
+
+@defproc[(tcp-client [hostname string?]
                      [port-no port-number?]
                      [local-hostname (or/c string? #f) #f]
-                     [local-port-no (or/c port-number? #f) #f]
-                     ) process?]{
-  Establishes a TCP connection to ``@racket[hostname]:@racket[port-no]''.
-  Returns a @racket[tcp-codec] created by @racket[make-codec].
+                     [local-port-no (or/c port-number? #f) #f]) socket?]{
+  Establishes a TCP connection to @var[hostname]:@var[port-no]. Returns a
+  @tech{TCP socket}.
 
   See @racket[tcp-connect] for argument details.
 }
 
-@defproc[(tcp-source [make-codec (-> input-port? output-port? process?)]
-                     [port-no listen-port-number?]
+@defproc[(tcp-server [port-no listen-port-number?]
                      [max-allow-wait exact-nonnegative-integer? 4]
                      [reuse? any/c #f]
-                     [hostname (or/c string? #f) #f]
-                     ) process?]{
-  Creates a ``listening'' TCP server on the local machine. Emits a
-  @racket[tcp-codec] for each TCP connection accepted.
-
-  See @racket[tcp-listen] for argument details.
-
-  Commands:
-
-  @itemlist[
-    @item{@racket['listen-address] -- returns the address of the listener}
-  ]
-}
-
-@defproc[(tcp-server [proc (-> any/c any/c)]
-                     [make-codec (-> input-port? output-port? process?)]
-                     [port-no listen-port-number?]
-                     [max-allow-wait exact-nonnegative-integer? 4]
-                     [reuse? any/c #f]
-                     [hostname (or/c string? #f) #f]
-                     ) process?]{
-  Creates a ``listening'' TCP server on the local machine, and a
-  @racket[server] on @racket[proc]. Emits a
-  @racket[tcp-codec]--@racket[server] @racket[bridge] for each TCP connection
+                     [hostname (or/c string? #f) #f]) process?]{
+  Creates a ``listening'' TCP server on @var[hostname]:@var[port-no]. Returns
+  a @racket[source] that emits a @tech{TCP socket} for each connection
   accepted.
 
   See @racket[tcp-listen] for argument details.
@@ -385,59 +361,61 @@ the following procedures:
   Commands:
 
   @itemlist[
-    @item{@racket['listen-address] -- returns the address of the listener}
+    @item{@racket['address] -- returns @racket[(list hostname port-no)]}
   ]
 }
 
-@defproc[(tcp-service [make-server (-> any/c process?)]
-                      [make-codec (-> input-port? output-port? process?)]
-                      [port-no listen-port-number?]
-                      [max-allow-wait exact-nonnegative-integer? 4]
-                      [reuse? any/c #f]
-                      [hostname (or/c string? #f) #f]
-                      ) process?]{
-  Creates a @racket[tcp-server] with @racket[make-proc] and
-  @racket[make-codec]. Adds connections emitted by the @racket[tcp-server] to
-  a @racket[service] keyed by full address. Applies @racket[make-proc] to the
-  full address of each TCP connection accepted. Closes all TCP connections
-  when it stops.
+@defproc[(tcp-service [make-codec codec/c]
+                      [srv process?]
+                      [#:on-accept on-accept (-> any/c process? any) void]
+                      [#:on-drop on-drop (-> any/c process? any) void])
+         process?]{
+  Returns a @racket[service] keyed by @tech{TCP socket} address. Applies
+  @racket[make-codec] to each @tech{TCP socket} emitted by @racket[srv] and
+  adds the resulting @tech{codec} to the service. When given @racket[(list
+  addr v)], forwards @var[v] to @var[addr]. Emits @racket[(list addr v)] when
+  @var[addr] emits @var[v]. Applies @racket[on-accept] to the @tech{codecs}
+  made by @racket[make-codec] and their addresses. Applies @racket[on-drop] to
+  each address--@tech{codec} pair it drops. Drops each @tech{codec} that dies.
+  Drops every @tech{codec} when it stops.
 
   Commands:
 
   @itemlist[
-    @item{@racket['listen-address] -- @racket[tcp-server] command
-      @racket['listen-address]}
-    @item{@racket['peers] -- @racket[service] command @racket['keys]}
-    @item{@racket['drop] @var[addr] -- @racket[service] command @racket['drop]
-      @var[addr]}
+    @item{@racket['peers] -- returns a list of addresses}
+    @item{@racket['get] @var[addr] -- returns the @tech{codec} associated with
+      @var[addr], or @racket[#f] is no such @tech{codec} exists}
+    @item{@racket['drop] @var[addr] -- disconnects the @tech{TCP socket}
+      associated with @var[addr]; returns @racket[#t] if @var[addr] was in
+      use, @racket[#f] otherwise}
   ]
 }
 
-@defproc[(udp-datagram-source [sock udp?]) process?]{
-  Emits each datagram received from @racket[sock] as a byte string.
-}
+@; @defproc[(udp-datagram-source [sock udp?]) process?]{
+@;   Emits each datagram received from @racket[sock] as a byte string.
+@; }
 
-@defproc[(udp-datagram-sink [sock udp?]) process?]{
-  Writes each given byte string to @racket[sock] as a datagram. Bytes strings
-  of length exceeding 65,527 bytes, the maximum size of a UDP datagram
-  payload, are truncated silently.
-}
+@; @defproc[(udp-datagram-sink [sock udp?]) process?]{
+@;   Writes each given byte string to @racket[sock] as a datagram. Bytes strings
+@;   of length exceeding 65,527 bytes, the maximum size of a UDP datagram
+@;   payload, are truncated silently.
+@; }
 
-@defproc[(udp-datagram-stream [sock udp?]) process?]{
-  Returns a @racket[stream] process that combines a
-  @racket[udp-datagram-source] and @racket[udp-datagram-sink].
-}
+@; @defproc[(udp-datagram-stream [sock udp?]) process?]{
+@;   Returns a @racket[stream] process that combines a
+@;   @racket[udp-datagram-source] and @racket[udp-datagram-sink].
+@; }
 
-@defproc[(udp-source [prs parser/c]) process?]{
-  Listens for incoming UDP datagrams. Returns a @racket[source] process that
-  applies @racket[prs] to each UDP datagram received and emits the result.
-}
+@; @defproc[(udp-source [prs parser/c]) process?]{
+@;   Listens for incoming UDP datagrams. Returns a @racket[source] process that
+@;   applies @racket[prs] to each UDP datagram received and emits the result.
+@; }
 
-@defproc[(udp-sink [prn printer/c]) process?]{
-  Applies @racket[prn] to each value received and transmits the result as a
-  UDP datagram.
-}
+@; @defproc[(udp-sink [prn printer/c]) process?]{
+@;   Applies @racket[prn] to each value received and transmits the result as a
+@;   UDP datagram.
+@; }
 
-@defproc[(udp-decoder [make-dec decoder/c]) process?]{
+@; @defproc[(udp-decoder [make-dec decoder/c]) process?]{
   
-}
+@; }
