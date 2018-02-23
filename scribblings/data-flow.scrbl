@@ -96,13 +96,10 @@ other port is closed immediately.
 @subsection{Codecs}
 
 A @deftech{codec} is a @tech{stream} that uses a @tech{socket} to exchange
-serializable values with remote agents. A codec is defined by its printer and
-parser. A @deftech{parser} is a procedure that de-serializes values from a
-@tech{socket}. A @deftech{printer} is a procedure that serializes values to a
-@tech{socket}. The @tech{source} part of a codec is called a
-@deftech{decoder}; it parses and emits values from a socket. The @tech{sink}
-part of a codec is called an @deftech{encoder}; it takes and prints values to
-a socket.
+serializable values with remote agents. The @tech{sink} is called an
+@deftech{encoder}; it uses a @deftech{printer} procedure to serialize values
+to a socket. The @tech{source} is called a @deftech{decoder}; it uses a
+@deftech{parser} procedure to de-serialize values from a socket.
 
 @defthing[parser/c contract? #:value (-> socket? any/c)]{
   Use this @racket-tech{function contract} to indicate that a function is a
