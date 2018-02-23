@@ -432,47 +432,6 @@ Processes are created explicitly by the @racket[process] function. Use
   ]
 }
 
-@defstruct*[message ([value any/c] [metadata any/c]) #:transparent]{
-  A @deftech{message} is a value with some metadata attached. 
-}
-
-@defproc[(service [key-proc (-> process? any/c)]
-                  [#:on-drop on-drop (-> any/c process? any) void])
-         process?]{
-  Returns a @deftech{service} process. Associates processes to keys generated
-  by @racket[key-proc]. When given @racket[(message key v)], forwards @var[v]
-  to @var[key]. Emits @racket[(message key v)] when the @tech{process}
-  associated with @var[key] emits @var[v]. Applies @racket[on-drop] to each
-  key-@tech{process} pair it drops. Drops each @tech{process} that dies. Drops
-  every @tech{process} when it stops.
-
-  Commands:
-
-  @itemlist[
-    @item{@racket['peers] -- returns an alist of active peers}
-    @item{@racket['add] @var[π] -- adds @tech{process} @racket[π] to the set
-      of active peers; returns the key associated with @racket[π]}
-    @item{@racket['get] @var[key] -- returns the @tech{process} associated
-      with @var[key], or @racket[#f] if no such @tech{process} exists}
-    @item{@racket['drop] @var[key] -- drops the @tech{process} associated with
-      @var[key]; returns @racket[#t] if @var[key] was in use, @racket[#f]
-      otherwise.}
-  ]
-
-  @; @examples[
-  @;   #:eval neuron-evaluator
-  @;   #:label "Example:"
-  @;   (define π
-  @;     (service string->symbol
-  @;              #:on-drop (λ (k v) (writeln k))))
-  @;   (define one (call π "one"))
-  @;   (define two (call π "two"))
-  @;   (define three (call π "three"))
-  @;   (π 'drop two)
-  @;   (stop π)
-  @; ]
-}
-
 @defproc[(simulator [proc (-> real? any)] [#:rate rate real? 10]) process?]{
   Returns a @deftech{simulator} process. Repeatedly calls @racket[proc] at a
   frequency of up to @racket[rate] times per second. Applies @racket[proc] to
@@ -532,6 +491,45 @@ Processes are created explicitly by the @racket[process] function. Use
      (bridge
       (server add1)
       (process (λ () (emit 1) (writeln (take))))))
+  ]
+}
+
+@defproc[(service [key-proc (-> process? any/c)]
+                  [#:on-drop on-drop (-> any/c process? any) void])
+         process?]{
+  Returns a @deftech{service} process. Associates processes to keys generated
+  by @racket[key-proc]. When given @racket[(list key v)], forwards @var[v]
+  to @var[key]. Emits @racket[(list key v)] when the @tech{process}
+  associated with @var[key] emits @var[v]. Applies @racket[on-drop] to each
+  key-@tech{process} pair it drops. Drops each @tech{process} that dies. Drops
+  every @tech{process} when it stops.
+
+  Commands:
+
+  @itemlist[
+    @item{@racket['peers] -- returns an alist of active peers}
+    @item{@racket['add] @var[π] -- adds @tech{process} @racket[π] to the set
+      of active peers; returns the key associated with @racket[π]}
+    @item{@racket['get] @var[key] -- returns the @tech{process} associated
+      with @var[key], or @racket[#f] if no such @tech{process} exists}
+    @item{@racket['drop] @var[key] -- drops the @tech{process} associated with
+      @var[key]; returns @racket[#t] if @var[key] was in use, @racket[#f]
+      otherwise.}
+  ]
+
+  @examples[
+    #:eval neuron-evaluator
+    #:label "Example:"
+    (define svc
+      (service (λ (π) (π))
+               #:on-drop (λ (k _) (writeln k))))
+    (svc 'add (start (server (curry + 1)) #:command (λ _ 1)))
+    (svc 'add (start (server (curry + 2)) #:command (λ _ 2)))
+    (svc 'add (start (server (curry + 3)) #:command (λ _ 3)))
+    (call svc (list 1 5))
+    (call svc (list 3 5))
+    (svc 'drop 2)
+    (stop svc)
   ]
 }
 
