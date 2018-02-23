@@ -498,11 +498,11 @@ Processes are created explicitly by the @racket[process] function. Use
                   [#:on-drop on-drop (-> any/c process? any) void])
          process?]{
   Returns a @deftech{service} process. Associates processes to keys generated
-  by @racket[key-proc]. When given @racket[(list key v)], forwards @var[v]
-  to @var[key]. Emits @racket[(list key v)] when the @tech{process}
-  associated with @var[key] emits @var[v]. Applies @racket[on-drop] to each
-  key-@tech{process} pair it drops. Drops each @tech{process} that dies. Drops
-  every @tech{process} when it stops.
+  by @racket[key-proc]. When given @racket[(list key v)], forwards @var[v] to
+  the @tech{process} associated with @var[key]. Emits @racket[(list key v)]
+  when the @tech{process} associated with @var[key] emits @var[v]. Applies
+  @racket[on-drop] to each key-@tech{process} pair it drops. Drops each
+  @tech{process} that dies. Drops every @tech{process} when it stops.
 
   Commands:
 
