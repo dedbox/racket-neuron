@@ -2,6 +2,6 @@
 
 (require neuron/private/require)
 
-(require-and-provide neuron/data-flow/socket
-                     neuron/data-flow/codec
-                     neuron/data-flow/networking)
+(require-and-provide neuron/data-flow/codec
+                     neuron/data-flow/network
+                     neuron/data-flow/socket)
