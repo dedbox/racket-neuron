@@ -79,3 +79,40 @@
    (if out-path
        (open-output-file out-path #:mode out-mode-flag #:exists exists-flag)
        (open-output-nowhere))))
+
+(module+ test
+  (require rackunit)
+
+  (test-case
+    "A socket is an input port and an output port."
+    (define sock (null-socket))
+    (check-pred input-port? sock)
+    (check-pred output-port? sock))
+
+  (test-case
+    "A socket syncs when its input port closes."
+    (define sock (string-socket))
+    (close-input-port (socket-in-port sock))
+    (sync sock)
+    (check-pred port-closed? (socket-in-port sock)))
+
+  (test-case
+    "A socket syncs when its output port closes."
+    (define sock (string-socket #:out #t))
+    (close-output-port (socket-out-port sock))
+    (sync sock)
+    (check-pred port-closed? (socket-out-port sock)))
+
+  (test-case
+    "A socket closes its output port when its input port closes."
+    (define sock (string-socket #:out #t))
+    (close-input-port (socket-in-port sock))
+    (sync sock)
+    (check-pred port-closed? (socket-out-port sock)))
+
+  (test-case
+    "A socket closes its input port when its output port closes."
+    (define sock (string-socket #:out #t))
+    (close-output-port (socket-out-port sock))
+    (sync sock)
+    (check-pred port-closed? (socket-in-port sock))))
