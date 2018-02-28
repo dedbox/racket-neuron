@@ -38,7 +38,7 @@
 
 @local-table-of-contents[#:style 'immediate-only]
 
-@include-section["reference/resources.scrbl"]
+@include-section["reference/control-your-resources.scrbl"]
 
 @section[#:style '(grouper)]{Operate Your Network}
 @subsection{Distributed Evaluation}
