@@ -7,8 +7,8 @@
 
 The name ``Neuron'' represents a language for building and operating
 decentralized program evaluators, along with the set of Racket libraries that
-implement the language. In this document, the name unambiguously refers to one
-or the other, never both.
+implement the language. In this document, the name unambiguously refers to
+either one or the other, but never both.
 
 Library design priorities:
 
@@ -20,16 +20,17 @@ Library design priorities:
 
 @section{Interpreter design, tools and techniques}
 
-Question: what are the ways to define a structure interpreter in Racket?
+Question: what are the ways to define an interpreter in Racket?
 
-Question: what is the @emph{recommended} way to define a structure interpreter
-in Racket?
-
-Question: what is the @emph{most popular} way to define a structure
-interpreter in Racket?
-
-Question: what is the @emph{easiest} way to define a structure interpreter in
+Question: what is the @emph{recommended} way to define an interpreter in
 Racket?
+
+Question: what is the @emph{most popular} way to define an interpreter in
+Racket?
+
+Question: what is the @emph{easiest} way to define a interpreter in Racket?
+
+Challenge: define ``easy.''
 
 Question: how can we do better?
 
