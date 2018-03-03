@@ -2,6 +2,7 @@
 
 **Decentralized Software Organisms**
 
+[![Racket Package](https://img.shields.io/badge/raco%20pkg-neuron-red.svg)](https://pkgs.racket-lang.org/package/neuron)
 [![Documentation](https://img.shields.io/badge/read-documentation-blue.svg)](http://docs.racket-lang.org/neuron/)
 
 Neuron is a series of Racket libraries that provide a spectrum of
