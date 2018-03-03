@@ -2,7 +2,7 @@
 
 @(require "base.rkt")
 
-@title[#:style '(unnumbered)]{The Neuron Technical Report}
+@title[#:style '(unnumbered)]{The Neuron Guide}
 @author{@author+email["Eric Griffis" "dedbox@gmail.com"]}
 
 This document is a repository for notes and other documentation that do not
