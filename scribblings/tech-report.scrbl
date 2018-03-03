@@ -19,7 +19,7 @@ DSL for composable evaluators.
 @centered[
   @vc-append[
     @hc-append[
-      @label[100 35]{Create}
+      @label[100 35]{Control}
       @vc-append[
         @hc-append[
           @layer[100 35]{Evaluators}
@@ -81,11 +81,78 @@ DSL for composable evaluators.
   ]
 ]
 
-@section{Evaluators}
+@section{Composable Evaluators}
 
-An evaluator is a fixed-point calculator on terms. More precisely, a
-@deftech{term} is either a primitive value or a composite structure over
-sub-terms, and an @deftech{evaluator} is a function that applies a stepper to
-a term repeatedly until the input and output terms are structurally
-equivalent. A @deftech{stepper} is a function that maps an input term to an
-output term.
+An @deftech{evaluator} calculates the fixed point of a @tech{term}. More
+precisely, an evaluator is a function that applies a @tech{stepper} to a
+@tech{term} repeatedly until the output equals the input.
+
+@subsection{Terms}
+
+@margin-note{In the future, terms may be syntax objects to enable source
+tracking}
+
+A @deftech{term} is defined recursively as a literal value or a serializable
+composite of sub-terms. For example, the symbol
+
+@racketblock['a-symbol]
+
+and the number
+
+@racketblock[123]
+
+are terms because they are literal values. Furthermore, the structures
+
+@racketblock[
+  '(a-symbol 123)
+]
+
+and
+
+@racketblock[
+  #hasheq((a-symbol . 123))
+]
+
+are terms because they are @racket[read]/@racket[write]able composites of
+literals.
+
+@subsection{Steppers}
+
+A @deftech{stepper} is a function that maps an input @tech{term} to an output
+@tech{term}. For example,
+
+@racketblock[
+  (match-lambda
+    [1 'a]
+    [2 'b]
+    [_ 'z])
+]
+
+is a stepper because it maps any term to @racket['a], @racket['b], or
+@racket['c]. Similarly,
+
+@racketblock[
+  (case-lambda
+    [(a) 1]
+    [(b) 2]
+    [else 0])
+]
+
+is a stepper because it maps any term to a number between @racket[0] and
+@racket[2]. More realistically, the @racket[values] procedure is a stepper
+because it maps every term to itself, and the function
+
+@racketblock[
+(define step
+  (match-lambda
+    [(cons (? term? e1) (? term? e2)) #:when (not (value? e1))
+     (cons (step e1) e2)]
+    [(cons (? value? v1) (? term? e2?)) #:when (not (value? e2))
+     (cons v1 (step e2))]
+    [(cons `(λ ,x11 ,e12) (? value? v2))
+     (substitute e12 x11 v2)]
+    [_ 'stuck]))
+]
+
+is a stepper because it implements the small-step semantics of the untyped
+lambda calculus on @tech{terms}.
