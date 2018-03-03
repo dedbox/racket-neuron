@@ -83,12 +83,6 @@ other port is closed immediately.
   See @racket[open-input-file] for details on @racket[in-mode-flag], and
   @racket[open-output-file] for details on @racket[out-mode-flag] and
   @racket[exists-flag].
-
-  @examples[
-    #:eval neuron-evaluator
-    #:label "Example:"
-    (read-line (file-socket #:in "info.rkt"))
-  ]
 }
 
 @section{Serialization}
