@@ -11,10 +11,10 @@ belong in @secref{the Neuron Reference}.
 @section{Introduction}
 
 Neuron is a series of Racket libraries that provide a spectrum of
-functionality related to creating, operating, integrating, and evolving
-decentralized run time environments and applications. At its core is a hybrid
-communication-based concurrency model and a structural pattern-based DSL for
-composable evaluators.
+functionality related to the creation, operation, integration, and evolution
+of decentralized run time environments and applications. At its core is a
+hybrid communication-based concurrency model and a structural pattern-based
+DSL for composable evaluators.
 
 @centered[
   @vc-append[
