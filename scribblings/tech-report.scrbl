@@ -5,33 +5,87 @@
 @title[#:style '(unnumbered)]{The Neuron Technical Report}
 @author{@author+email["Eric Griffis" "dedbox@gmail.com"]}
 
-The name ``Neuron'' represents a language for building and operating
-decentralized program evaluators, along with the set of Racket libraries that
-implement the language. In this document, the name unambiguously refers to
-either one or the other, but never both.
+This document is a repository for notes and other documentation that do not
+belong in @secref{the Neuron Reference}.
 
-Library design priorities:
+@section{Introduction}
 
-@itemlist[
-  @item{A program is a data structure}
-  @item{All data structures are serializable}
-  @item{WHAT ABOUT data lineage and information flow?}
+Neuron is a series of Racket libraries that provide a spectrum of
+functionality related to creating, operating, integrating, and evolving
+decentralized run time environments and applications. At its core is a hybrid
+communication-based concurrency model and a structural pattern-based DSL for
+composable evaluators.
+
+@centered[
+  @vc-append[
+    @hc-append[
+      @label[100 35]{Create}
+      @vc-append[
+        @hc-append[
+          @layer[100 35]{Evaluators}
+          @layer[100 35]{Processes}
+        ]
+        @layer[200 35]{Data Flows}
+      ]
+    ]
+    @blank[10]
+    @hc-append[
+      @label[100 35]{Operate}
+      @vc-append[
+        @hc-append[
+          @layer[100 35]{Consistent}
+          @layer[100 35]{Available}
+        ]
+        @layer[200 35]{Distributed Systems}
+      ]
+    ]
+    @blank[10]
+    @hc-append[
+      @label[100 35]{Cooperate}
+      @vc-append[
+        @hc-append[
+          @layer[100 35]{Identity}
+          @layer[100 35]{Consensus}
+          @layer[100 35]{Capabilities}
+        ]
+        @hc-append[
+          @layer[100 35]{Trust}
+          @layer[100 35]{Reputation}
+          @layer[100 35]{Authorization}
+        ]
+        @hc-append[
+          @layer[200 35]{Agreement}
+          @layer[100 35]{Enforcement}
+        ]
+        @layer[300 35]{Decentralized Applications}
+      ]
+    ]
+    @blank[10]
+    @hc-append[
+      @label[100 35]{Grow}
+      @vc-append[
+        @hc-append[
+          @vc-append[
+            @hc-append[
+              @layer[100 35]{Agency}
+              @layer[100 35]{Adaptation}
+              @layer[100 35]{Reproduction}
+            ]
+            @layer[300 35]{Organism}
+          ]
+          @layer[100 70]{Resources}
+        ]
+        @layer[400 35]{Software Ecosystem}
+      ]
+    ]
+  ]
 ]
 
-@section{Interpreter design, tools and techniques}
+@section{Evaluators}
 
-Question: what are the ways to define an interpreter in Racket?
-
-Question: what is the @emph{recommended} way to define an interpreter in
-Racket?
-
-Question: what is the @emph{most popular} way to define an interpreter in
-Racket?
-
-Question: what is the @emph{easiest} way to define a interpreter in Racket?
-
-Challenge: define ``easy.''
-
-Question: how can we do better?
-
-Challenge: define ``better.''
+An evaluator is a fixed-point calculator on terms. More precisely, a
+@deftech{term} is either a primitive value or a composite structure over
+sub-terms, and an @deftech{evaluator} is a function that applies a stepper to
+a term repeatedly until the input and output terms are structurally
+equivalent. A @deftech{stepper} is a function that maps an input term to an
+output term.
