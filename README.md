@@ -1,6 +1,8 @@
 # Neuron
 
-## Decentralized Software Organisms
+**Decentralized Software Organisms**
+
+[![Documentation](https://img.shields.io/badge/read-documentation-blue.svg)](http://docs.racket-lang.org/neuron/)
 
 Neuron is a series of Racket libraries that provide a spectrum of
 functionality related to the creation, operation, integration, and evolution
