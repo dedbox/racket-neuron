@@ -18,6 +18,7 @@ DSL for composable evaluators.
 
 @centered[
   @vc-append[
+    10
     @hc-append[
       @label[100 35]{Control}
       @vc-append[
@@ -28,7 +29,6 @@ DSL for composable evaluators.
         @layer[200 35]{Data Flows}
       ]
     ]
-    @blank[10]
     @hc-append[
       @label[100 35]{Operate}
       @vc-append[
@@ -39,7 +39,6 @@ DSL for composable evaluators.
         @layer[200 35]{Distributed Systems}
       ]
     ]
-    @blank[10]
     @hc-append[
       @label[100 35]{Cooperate}
       @vc-append[
@@ -60,7 +59,6 @@ DSL for composable evaluators.
         @layer[300 35]{Decentralized Applications}
       ]
     ]
-    @blank[10]
     @hc-append[
       @label[100 35]{Grow}
       @vc-append[
@@ -89,8 +87,8 @@ precisely, an evaluator is a function that applies a @tech{stepper} to a
 
 @subsection{Terms}
 
-@margin-note{In the future, terms may be syntax objects to enable source
-tracking}
+@margin-note{In the future, terms may become syntax objects to enable source
+tracking.}
 
 A @deftech{term} is defined recursively as a literal value or a serializable
 composite of sub-terms. For example, the symbol
@@ -156,3 +154,94 @@ because it maps every term to itself, and the function
 
 is a stepper because it implements the small-step semantics of the untyped
 lambda calculus on @tech{terms}.
+
+@section{Communication-based Concurrency}
+
+Neuron provides a concurrency model based on lightweight actor-style
+@tech{process}es communicating over first-class named synchronous
+@racket-tech{channels}. A @tech{process} is a thread that can clean up after
+itself and keep secrets. Concretely, processes imbue threads with life cycle
+hooks and two orthogonal lines of communication.
+
+@subsection{The Process Life Cycle}
+
+When a @tech{process} is created, several @tech{hooks} and @tech{handlers} may
+be installed. A @deftech{hook} is a function to be invoked automatically at
+specific points in the life time of a @tech{process}, and a @deftech{handler}
+is a function to be invoked manually by another @tech{process}.
+
+@; nodes
+@(define starting-box (label 70 35 "starting"))
+@(define alive-box (label 70 35 "alive"))
+@(define stopping-box (label 70 35 "stopping"))
+@(define dying-box (label 70 35 "dying"))
+@(define dead-box (label 70 35 "dead"))
+
+@(define life-cycle-diagram
+   @vc-append[
+     @starting-box
+     @blank[35]
+     @alive-box
+     @blank[35]
+     @hc-append[
+       105
+       @stopping-box
+       @dying-box
+     ]
+     @blank[25]
+     @dead-box
+   ])
+
+@; edges
+@(set! life-cycle-diagram
+  (pin-arrow-line
+   10
+   life-cycle-diagram
+   starting-box cb-find
+   alive-box ct-find))
+@(set! life-cycle-diagram
+  (pin-arrow-line
+   10
+   life-cycle-diagram
+   alive-box lc-find
+   stopping-box ct-find
+   #:start-angle pi
+   #:end-angle (- (/ pi 2))
+   #:start-pull 1/2
+   #:end-pull 1/2))
+@(set! life-cycle-diagram
+  (pin-arrow-line
+   10
+   life-cycle-diagram
+   alive-box rc-find
+   dying-box ct-find
+   #:start-angle 0
+   #:end-angle (- (/ pi 2))
+   #:start-pull 1/2
+   #:end-pull 1/2))
+@(set! life-cycle-diagram
+  (pin-arrow-line
+   10
+   life-cycle-diagram
+   stopping-box cb-find
+   dead-box lc-find
+   #:start-angle (- (/ pi 2))
+   #:end-angle 0
+   #:start-pull 1/2
+   #:end-pull 1/2))
+@(set! life-cycle-diagram
+  (pin-arrow-line
+   10
+   life-cycle-diagram
+   dying-box cb-find
+   dead-box rc-find
+   #:start-angle (- (/ pi 2))
+   #:end-angle pi
+   #:start-pull 1/2
+   #:end-pull 1/2))
+
+@centered[@life-cycle-diagram]
+
+@subsection{Command Handlers}
+
+@subsection{Channels and Events}

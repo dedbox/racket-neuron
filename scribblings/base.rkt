@@ -6,6 +6,7 @@
 (require-and-provide
  neuron
  pict
+ racket/math
  racket/sandbox
  scribble/examples
  scribble/manual)
@@ -18,6 +19,8 @@
  racket/tcp)
 
 (provide (all-defined-out))
+
+;;; Drawing
 
 (define (layer w h str
                #:t [t (hline w 0)]
@@ -37,8 +40,12 @@
 (define (label w h str #:fg [fg "black"])
   (layer w h str #:t (blank) #:r (blank) #:b (blank) #:l (blank) #:fg fg))
 
+;;; Scribble Tech
+
 (define (racket-tech . args)
   (apply tech #:doc '(lib "scribblings/reference/reference.scrbl") args))
+
+;;; Sandboxed Evaluation
 
 (define neuron-evaluator
   (parameterize ([sandbox-output 'string]
