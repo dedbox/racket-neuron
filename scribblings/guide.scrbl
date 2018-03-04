@@ -230,38 +230,33 @@ attempts to spawn a new thread of execution. The requesting @tech{process}
 blocks until the new @tech{process} is alive and a fresh @tech{process
 descriptor} for it has been allocated.
 
-A @tech{process} is alive until its thread of execution terminates. A
-@tech{process} can end itself, either by reaching the end of its program or
+A @tech{process} stays alive until its thread of execution terminates. A
+@tech{process} can end itself, either by reaching the end of its program or by
 issuing a @racket[quit] or @racket[die] command. A @tech{process} can also use
 the @racket[stop] and @racket[kill] commands to end any @tech{process} it
 holds a @tech{process descriptor} for.
 
 When a @tech{process} is terminated by a @racket[quit] or @racket[stop]
-command, it enters the stopping state while it calls every function added to
-its @tech{on-stop hook}. After the last function returns, the @tech{process}
-enters the dying state.
-
+command, it enters the stopping state while it calls its @tech{on-stop hook}.
 When a @tech{process} reaches the end of its program or @tech{on-stop hook},
 or is terminated by a @racket[die] or @racket[kill] command, it enters the
-dying state while it calls every function added to its @tech{on-dead hook}.
-After the last function returns, the @tech{process} is dead.
+dying state while it calls its @tech{on-dead hook}. A @tech{process} is dead
+when its @tech{on-dead hook} returns.
 
 @examples[
   #:eval neuron-evaluator
   #:label "Example:"
-  (wait
-   (start (start (process (λ () (displayln 'ALIVE)))
-                 #:on-stop (λ () (displayln 'STOP-1))
-                 #:on-dead (λ () (displayln 'DEAD-1)))
-          #:on-stop (λ () (displayln 'STOP-2))
-          #:on-dead (λ () (displayln 'DEAD-2))))
+  (wait (start (start (process (λ () (displayln 'ALIVE)))
+                      #:on-stop (λ () (displayln 'STOP-1))
+                      #:on-dead (λ () (displayln 'DEAD-1)))
+               #:on-stop (λ () (displayln 'STOP-2))
+               #:on-dead (λ () (displayln 'DEAD-2))))
 ]
 
 The @tech{on-dead hook} is for freeing resources no longer needed by any
 @tech{process}. Neuron uses the @tech{on-dead hook} internally to terminate
 network listeners and @racket[kill] sub-@tech{process}es. This @tech{hook}
-runs unconditionally and can't be canceled, so it should do as little as
-possible to minimize latency.
+runs unconditionally and can't be canceled.
 
 The @tech{on-stop hook} is for extra or optional clean-up tasks. Neuron uses
 the @tech{on-stop hook} to close @racket-tech{ports}, terminate network
@@ -269,7 +264,25 @@ connections, and @racket[stop] sub-@tech{process}es. For example, a
 @tech{codec} closes its @racket-tech{input port} and @racket-tech{output port}
 when stopped, but not when killed, so it can be swapped out mid-stream.
 
+The @racket[deadlock] function causes the current @tech{process} to wait for
+itself to terminate, effectively causing the computation to diverge. This
+function can be used as a termination ``latch'' to prevent a @tech{process}
+from ending until @racket[stop]ped or @racket[kill]ed.
+
+@examples[
+  #:eval neuron-evaluator
+  #:label "Example:"
+  (kill (start (start (process deadlock)
+                      #:on-stop (λ () (displayln 'STOP-1))
+                      #:on-dead (λ () (displayln 'DEAD-1)))
+               #:on-stop (λ () (displayln 'STOP-2))
+               #:on-dead (λ () (displayln 'DEAD-2))))
+]
+
 @subsection{Command Handlers}
+
+A @deftech{handler} is a function to be invoked manually by another
+@tech{process}. @tech{Process}es
 
 @subsection{Unbuffered Channels}
 
