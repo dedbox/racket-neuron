@@ -79,22 +79,6 @@ Processes are created explicitly by the @racket[process] function. Use
   immediately with a @deftech{process descriptor} value.
 }
 
-@defproc[(current-process) process?]{
-  Returns the @tech{process descriptor} for the currently executing process.
-}
-
-@defproc[(quit [v any/c] ...) void?]{
-  Gracefully terminates the current process, ignoring any arguments.
-}
-
-@defproc[(die [v any/c] ...) void?]{
-  Immediately terminates the current process, ignoring any arguments.
-}
-
-@defproc[(deadlock [v any/c] ...) void?]{
-  Hangs the current process, ignoring any arguments.
-}
-
 @defform[(start π-expr hooks-and-handlers ...)
          #:grammar
          [(hooks-and-handlers
@@ -141,6 +125,22 @@ Processes are created explicitly by the @racket[process] function. Use
 
 @defproc[(alive? [π process?]) boolean?]{
   Returns @racket[#t] if @racket[π] is not dead, @racket[#f] otherwise.
+}
+
+@defproc[(current-process) process?]{
+  Returns the @tech{process descriptor} for the currently executing process.
+}
+
+@defproc[(quit [v any/c] ...) void?]{
+  Gracefully terminates the current process, ignoring any arguments.
+}
+
+@defproc[(die [v any/c] ...) void?]{
+  Immediately terminates the current process, ignoring any arguments.
+}
+
+@defproc[(deadlock [v any/c] ...) void?]{
+  Hangs the current process, ignoring any arguments.
 }
 
 @section{Inter-Process Communication}
