@@ -152,8 +152,8 @@ because it maps every term to itself, and the function
     [_ 'stuck]))
 ]
 
-is a stepper because it implements the small-step semantics of the untyped
-lambda calculus on @tech{terms}.
+is a stepper because it maps every @tech{term} to a @tech{term} term in the
+untyped lambda calculus or the symbol @racket['stuck].
 
 @section{Communication-based Concurrency}
 
