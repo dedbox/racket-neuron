@@ -136,8 +136,7 @@ maps any term to @racket['a], @racket['b], or @racket['c]. Similarly,
 ]
 
 maps any term to a number between @racket[0] and @racket[2]. A more realistic
-example is the @racket[values] procedure, which maps every term to itself; or
-the function
+example is @racket[values], which maps every term to itself; or the function
 
 @racketblock[
 (define step
@@ -163,8 +162,8 @@ with life cycle hooks and two orthogonal lines of communication.
 
 @subsection{The Process Life Cycle}
 
-When a @tech{process} is created, several @tech{hooks} and @tech{handlers} may
-be installed. A @deftech{hook} is a function to be invoked automatically at
+When a @tech{process} is created, @tech{hooks} and @tech{handlers} may be
+installed. A @deftech{hook} is a function to be invoked automatically at
 specific points in the life time of a @tech{process}.
 
 @; nodes
@@ -228,7 +227,7 @@ might be added.}
 A @tech{process} is created in the starting state when another @tech{process}
 attempts to spawn a new thread of execution. The requesting @tech{process}
 blocks until the new @tech{process} is alive and a fresh @tech{process
-descriptor} for it has been allocated.
+descriptor} for it has been returned.
 
 A @tech{process} stays alive until its thread of execution terminates. A
 @tech{process} can end itself, either by reaching the end of its program or by
@@ -236,12 +235,12 @@ issuing a @racket[quit] or @racket[die] command. A @tech{process} can also use
 the @racket[stop] and @racket[kill] commands to end any @tech{process} it
 holds a @tech{process descriptor} for.
 
-When a @tech{process} is terminated by a @racket[quit] or @racket[stop]
-command, it enters the stopping state while it calls its @tech{on-stop hook}.
-When a @tech{process} reaches the end of its program or @tech{on-stop hook},
-or is terminated by a @racket[die] or @racket[kill] command, it enters the
-dying state while it calls its @tech{on-dead hook}. A @tech{process} is dead
-when its @tech{on-dead hook} returns.
+When a @tech{process} is terminated by @racket[quit] or @racket[stop], it
+enters the stopping state while it calls its @tech{on-stop hook}. When a
+@tech{process} reaches the end of its program or @tech{on-stop hook}, or is
+terminated by a @racket[die] or @racket[kill] command, it enters the dying
+state while it calls its @tech{on-dead hook}. A @tech{process} is dead when
+its @tech{on-dead hook} returns.
 
 @examples[
   #:eval neuron-evaluator
@@ -262,12 +261,13 @@ The @tech{on-stop hook} is for extra or optional clean-up tasks. Neuron uses
 the @tech{on-stop hook} to close @racket-tech{ports}, terminate network
 connections, and @racket[stop] sub-@tech{process}es. For example, a
 @tech{codec} closes its @racket-tech{input port} and @racket-tech{output port}
-when stopped, but not when killed, so it can be swapped out mid-stream.
+when stopped---but not when killed, so it can be swapped out mid-stream or
+restarted after errors have been handled.
 
-The @racket[deadlock] function causes the current @tech{process} to wait for
-itself to terminate, effectively causing the computation to diverge. This
-function can be used as a termination ``latch'' to prevent a @tech{process}
-from ending until @racket[stop]ped or @racket[kill]ed.
+The @racket[deadlock] function waits for the current @tech{process} to
+terminate, causing the computation to diverge. It can be used as a termination
+``latch'' to prevent the current @tech{process} from ending until stopped or
+killed.
 
 @examples[
   #:eval neuron-evaluator
