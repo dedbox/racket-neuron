@@ -10,5 +10,5 @@ time environments and programs, and mobile software agents.
 
 @local-table-of-contents[#:style 'immediate-only]
 
-@include-section["reference.scrbl"]
 @include-section["guide.scrbl"]
+@include-section["reference.scrbl"]
