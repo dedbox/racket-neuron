@@ -126,8 +126,7 @@ A @deftech{stepper} is a function that maps an input @tech{term} to an output
     [_ 'z])
 ]
 
-is a stepper because it maps any term to @racket['a], @racket['b], or
-@racket['c]. Similarly,
+maps any term to @racket['a], @racket['b], or @racket['c]. Similarly,
 
 @racketblock[
   (case-lambda
@@ -136,9 +135,9 @@ is a stepper because it maps any term to @racket['a], @racket['b], or
     [else 0])
 ]
 
-is a stepper because it maps any term to a number between @racket[0] and
-@racket[2]. More realistically, the @racket[values] procedure is a stepper
-because it maps every term to itself, and the function
+maps any term to a number between @racket[0] and @racket[2]. A more realistic
+example is the @racket[values] procedure, which maps every term to itself; or
+the function
 
 @racketblock[
 (define step
@@ -152,23 +151,21 @@ because it maps every term to itself, and the function
     [_ 'stuck]))
 ]
 
-is a stepper because it maps every @tech{term} to a @tech{term} term in the
-untyped lambda calculus or the symbol @racket['stuck].
+a @tech{term}-based small-@tech{stepper} for the untyped lambda calculus.
 
 @section{Communication-based Concurrency}
 
-Neuron provides a concurrency model based on lightweight actor-style
+Neuron uses a concurrency model based on lightweight actor-style
 @tech{process}es communicating over first-class named synchronous
 @racket-tech{channels}. A @tech{process} is a thread that can clean up after
-itself and keep secrets. Concretely, processes imbue threads with life cycle
-hooks and two orthogonal lines of communication.
+itself and keep ``secrets.'' Concretely, processes imbue @racket-tech{threads}
+with life cycle hooks and two orthogonal lines of communication.
 
 @subsection{The Process Life Cycle}
 
 When a @tech{process} is created, several @tech{hooks} and @tech{handlers} may
 be installed. A @deftech{hook} is a function to be invoked automatically at
-specific points in the life time of a @tech{process}, and a @deftech{handler}
-is a function to be invoked manually by another @tech{process}.
+specific points in the life time of a @tech{process}.
 
 @; nodes
 @(define starting-box (label 70 35 "starting"))
@@ -176,21 +173,16 @@ is a function to be invoked manually by another @tech{process}.
 @(define stopping-box (label 70 35 "stopping"))
 @(define dying-box (label 70 35 "dying"))
 @(define dead-box (label 70 35 "dead"))
+@(define blank-box (label 70 35 ""))
 
+@; layout
 @(define life-cycle-diagram
-   @vc-append[
-     @starting-box
-     @blank[35]
-     @alive-box
-     @blank[35]
-     @hc-append[
-       105
-       @stopping-box
-       @dying-box
-     ]
-     @blank[25]
-     @dead-box
-   ])
+   (vl-append
+    35
+    starting-box
+    alive-box
+    (hc-append 35 stopping-box dying-box)
+    (hc-append 35 blank-box dead-box)))
 
 @; edges
 @(set! life-cycle-diagram
@@ -203,12 +195,20 @@ is a function to be invoked manually by another @tech{process}.
   (pin-arrow-line
    10
    life-cycle-diagram
-   alive-box lc-find
-   stopping-box ct-find
-   #:start-angle pi
-   #:end-angle (- (/ pi 2))
-   #:start-pull 1/2
-   #:end-pull 1/2))
+   alive-box cb-find
+   stopping-box ct-find))
+@(set! life-cycle-diagram
+  (pin-arrow-line
+   10
+   life-cycle-diagram
+   stopping-box rc-find
+   dying-box lc-find))
+@(set! life-cycle-diagram
+  (pin-arrow-line
+   10
+   life-cycle-diagram
+   dying-box cb-find
+   dead-box ct-find))
 @(set! life-cycle-diagram
   (pin-arrow-line
    10
@@ -219,29 +219,57 @@ is a function to be invoked manually by another @tech{process}.
    #:end-angle (- (/ pi 2))
    #:start-pull 1/2
    #:end-pull 1/2))
-@(set! life-cycle-diagram
-  (pin-arrow-line
-   10
-   life-cycle-diagram
-   stopping-box cb-find
-   dead-box lc-find
-   #:start-angle (- (/ pi 2))
-   #:end-angle 0
-   #:start-pull 1/2
-   #:end-pull 1/2))
-@(set! life-cycle-diagram
-  (pin-arrow-line
-   10
-   life-cycle-diagram
-   dying-box cb-find
-   dead-box rc-find
-   #:start-angle (- (/ pi 2))
-   #:end-angle pi
-   #:start-pull 1/2
-   #:end-pull 1/2))
 
 @centered[@life-cycle-diagram]
 
+@margin-note{In the future, a @emph{paused} state and an @emph{on-pause} hook
+might be added.}
+
+A @tech{process} is created in the starting state when another @tech{process}
+attempts to spawn a new thread of execution. The requesting @tech{process}
+blocks until the new @tech{process} is alive and a fresh @tech{process
+descriptor} for it has been allocated.
+
+A @tech{process} is alive until its thread of execution terminates. A
+@tech{process} can end itself, either by reaching the end of its program or
+issuing a @racket[quit] or @racket[die] command. A @tech{process} can also use
+the @racket[stop] and @racket[kill] commands to end any @tech{process} it
+holds a @tech{process descriptor} for.
+
+When a @tech{process} is terminated by a @racket[quit] or @racket[stop]
+command, it enters the stopping state while it calls every function added to
+its @tech{on-stop hook}. After the last function returns, the @tech{process}
+enters the dying state.
+
+When a @tech{process} reaches the end of its program or @tech{on-stop hook},
+or is terminated by a @racket[die] or @racket[kill] command, it enters the
+dying state while it calls every function added to its @tech{on-dead hook}.
+After the last function returns, the @tech{process} is dead.
+
+@examples[
+  #:eval neuron-evaluator
+  #:label "Example:"
+  (wait
+   (start (start (process (λ () (displayln 'ALIVE)))
+                 #:on-stop (λ () (displayln 'STOP-1))
+                 #:on-dead (λ () (displayln 'DEAD-1)))
+          #:on-stop (λ () (displayln 'STOP-2))
+          #:on-dead (λ () (displayln 'DEAD-2))))
+]
+
+The @tech{on-dead hook} is for freeing resources no longer needed by any
+@tech{process}. Neuron uses the @tech{on-dead hook} internally to terminate
+network listeners and @racket[kill] sub-@tech{process}es. This @tech{hook}
+runs unconditionally and can't be canceled, so it should do as little as
+possible to minimize latency.
+
+The @tech{on-stop hook} is for extra or optional clean-up tasks. Neuron uses
+the @tech{on-stop hook} to close @racket-tech{ports}, terminate network
+connections, and @racket[stop] sub-@tech{process}es. For example, a
+@tech{codec} closes its @racket-tech{input port} and @racket-tech{output port}
+when stopped, but not when killed, so it can be swapped out mid-stream.
+
 @subsection{Command Handlers}
 
-@subsection{Channels and Events}
+@subsection{Unbuffered Channels}
+

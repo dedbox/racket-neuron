@@ -16,6 +16,7 @@
  json
  racket/base
  racket/contract
+ racket/match
  racket/tcp)
 
 (provide (all-defined-out))
