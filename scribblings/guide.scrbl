@@ -281,8 +281,31 @@ killed.
 
 @subsection{Command Handlers}
 
-A @deftech{handler} is a function to be invoked manually by another
-@tech{process}. @tech{Process}es
+Applying a @tech{process descriptor} to an argument list invokes its
+@tech{command handler}, a simple dispatch mechanism. Because the @tech{command
+handler} is installed while a @tech{process} is starting, it can have direct
+access to the internal state of the @tech{process} via the constructing
+closure.
+
+Neuron uses the @tech{command handler} to provide simple properties and
+methods.
+
+@examples[
+  #:eval neuron-evaluator
+  #:label "Example:"
+  (define π
+    (let ([env #hash(((a b) . 1) ((c) . 2))])
+      (start (process deadlock)
+             #:command (λ args (hash-ref env args #f)))))
+  (π 'a 'b)
+  (π 'c)
+  (π 'd)
+]
+
+@tech{Evaluators} and @tech{steppers} can be used as @tech{command handlers},
+enabling @tech{term}-based DSLs for programmable @tech{process} interactions.
+This technique is used for every command handler provided by Neuron.
 
 @subsection{Unbuffered Channels}
 
+@subsection{Information Flow Control}
