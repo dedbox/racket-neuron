@@ -23,10 +23,11 @@ features:
 ]
 
 A process can be applied as a procedure, which invokes its @deftech{command
-handler}. The @tech{command handler} is a list of procedures, and the result
-of a command is the same as the result of the first procedure in the list to
-return a value other than @racket[unhandled]. If every procedure returns
-@racket[unhandled] or the list is empty, @racket[unhandled-command] is raised.
+handler}, or @deftech{handler}. The @tech{command handler} is a list of
+procedures, and the result of a command is the same as the result of the first
+procedure in the list to return a value other than @racket[unhandled]. If
+every procedure returns @racket[unhandled] or the list is empty,
+@racket[unhandled-command] is raised.
 
 @examples[
   #:eval neuron-evaluator
