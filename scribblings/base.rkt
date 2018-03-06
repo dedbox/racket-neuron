@@ -52,8 +52,6 @@
   (parameterize ([sandbox-output 'string]
                  [sandbox-error-output 'string]
                  [sandbox-memory-limit 50])
-    (make-evaluator
-     'racket
-     '(require neuron))))
+    (make-evaluator 'racket #:requires '(neuron))))
 
 (random-seed 1)
