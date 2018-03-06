@@ -548,10 +548,6 @@ Processes are created explicitly by the @racket[process] function. Use
   from @racket[π]. Applies @racket[pre-take-eof], @racket[post-take-eof],
   @racket[pre-emit-eof], and @racket[post-emit-eof] at the appropriate times.
   Stops @racket[π] when it stops. Dies when @racket[π] dies.
-}
-
-@defproc[(shutdown [π process?]) void?]{
-  Gives @racket[eof] to @racket[π] and blocks until it dies.
 
   @examples[
     #:eval neuron-evaluator
@@ -561,6 +557,10 @@ Processes are created explicitly by the @racket[process] function. Use
     (shutdown π)
     (dead? π)
   ]
+}
+
+@defproc[(shutdown [π process?]) void?]{
+  Gives @racket[eof] to @racket[π] and blocks until it dies.
 }
 
 @defproc[(shutdown-evt [π process?]) evt?]{
