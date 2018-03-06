@@ -24,7 +24,11 @@
         #:else default)
      (match-lambda
        [`q q-exp ...] ...
-       [_ default])]))
+       [_ default])]
+
+    [(_ ([q q-exp ...] ...))
+     (match-lambda
+       [`q q-exp ...] ...)]))
 
 (module+ test
   (require rackunit)
