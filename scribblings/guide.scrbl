@@ -305,8 +305,62 @@ methods.
 ]
 
 @tech{Evaluators} and @tech{steppers} can be used as @tech{command handlers},
-enabling @tech{term}-based DSLs for programmable @tech{process} interactions.
+enabling @tech{term}-based DSLs for out-of-band @tech{process} control.
 
 @subsection{Unbuffered Channels}
 
+@tech{Process}es can also communicate by exchanging values through their
+@tech{input channels} and @tech{output channels}. Most of the @tech{process}
+constructors provided by Neuron are for creating channel-based data flow
+networks, hence the distinction between ``in-band'' channel-mediated exchanges
+versus ``out-of-band'' commands.
+
+The @racket[server] command creates a @tech{process} that follows the
+request-reply pattern for in-band exchanges. This is useful for providing
+in-band access to the @tech{command handler} of a @tech{process}.
+
+@examples[
+  #:eval neuron-evaluator
+  #:label "Example:"
+  (define π (start (process deadlock) #:command add1))
+  (define cmd (server π))
+  (call cmd 1)
+]
+
+@subsection{Data Flow Control}
+
+Processes can also be combined in non-trivial ways to provide restricted or
+revocable access to others.
+
+@examples[
+  #:eval neuron-evaluator
+  #:label "Example of restriction:"
+  (define π (sexp-codec (string-socket #:in "12 34 56" #:out #t)))
+  (define to-π (proxy-to π))
+  (define from-π (proxy-from π))
+  (recv from-π)
+  (give to-π 'abc)
+  (get-output-string (π 'socket))
+  (try-recv to-π)
+  (sync/timeout 0 (give-evt from-π))
+]
+
+@examples[
+  #:eval neuron-evaluator
+  #:label "Example of revocation:"
+  (define π1 (sexp-codec (string-socket #:in "12 34 56")))
+  (define π2 (proxy π1))
+  (recv π2)
+  (code:line
+   (code:comment "later, perhaps in another process")
+   (kill π2))
+  (code:line
+   (code:comment "then π2 no longer works")
+   (try-recv π2))
+  (code:line
+   (code:comment "but π1 still does")
+   (recv π1))
+]
+
 @subsection{Information Flow Control}
+
