@@ -141,11 +141,11 @@ example is @racket[values], which maps every term to itself; or the function
 @racketblock[
 (define step
   (match-lambda
-    [(cons (? term? e1) (? term? e2)) #:when (not (value? e1))
-     (cons (step e1) e2)]
-    [(cons (? value? v1) (? term? e2?)) #:when (not (value? e2))
-     (cons v1 (step e2))]
-    [(cons `(λ ,x11 ,e12) (? value? v2))
+    [(list (? term? e1) (? term? e2)) #:when (not (value? e1))
+     (list (step e1) e2)]
+    [(list (? value? v1) (? term? e2?)) #:when (not (value? e2))
+     (list v1 (step e2))]
+    [(list `(λ ,(? symbol? x11) ,(? term? e12)) (? value? v2))
      (substitute e12 x11 v2)]
     [_ 'stuck]))
 ]
@@ -156,9 +156,10 @@ a @tech{term}-based small-@tech{stepper} for the untyped lambda calculus.
 
 Neuron uses a concurrency model based on lightweight actor-style
 @tech{process}es communicating over first-class named synchronous
-@racket-tech{channels}. A @tech{process} is a thread that can clean up after
-itself and keep ``secrets.'' Concretely, processes imbue @racket-tech{threads}
-with life cycle hooks and two orthogonal lines of communication.
+@racket-tech{channels}. A @tech{process} is a like a thread that can clean up
+after itself and keep ``secrets.'' Concretely, processes imbue
+@racket-tech{threads} with life cycle hooks and two orthogonal lines of
+communication.
 
 @subsection{The Process Life Cycle}
 
@@ -294,7 +295,8 @@ methods.
   #:eval neuron-evaluator
   #:label "Example:"
   (define π
-    (let ([env #hash(((a b) . 1) ((c) . 2))])
+    (let ([env #hash([(a b) . 1]
+                     [(c) . 2])])
       (start (process deadlock)
              #:command (λ args (hash-ref env args #f)))))
   (π 'a 'b)
