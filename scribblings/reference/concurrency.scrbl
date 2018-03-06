@@ -361,6 +361,44 @@ Processes are created explicitly by the @racket[process] function. Use
   ]
 }
 
+@defproc[
+  (proxy-to [π process?]
+            [#:on-take on-take (-> any/c any/c) values])
+  process?
+]{
+
+  Returns a @tech{proxy} process. Forwards values to @racket[π]. Calls
+  @racket[on-take] at the appropriate time.
+
+}
+
+@defproc[
+  (proxy-from [π process?]
+              [#:on-emit on-emit (-> any/c any/c) values])
+  process?
+]{
+
+  Returns a @tech{proxy} process. Forwards values from @racket[π]. Calls
+  @racket[on-emit] at the appropriate time.
+
+}
+
+@defproc[(proxy-evt [π process?]
+                    [#:on-take on-take (-> any/c any/c) values]
+                    [#:on-emit on-emit (-> any/c any/c) values])
+         evt?]{
+  Returns a constant @racket-tech{synchronizable event} equivalent to
+
+  @racketblock[
+    (choice-evt
+     (proxy-to-evt π #:on-take on-take)
+     (proxy-from-evt π #:on-emit on-emit))
+  ]
+
+  Becomes @racket-tech{ready for synchronization} when @racket[π] is dead. The
+  @racket-tech{synchronization result} is @racket[π].
+}
+
 @defproc[(proxy-to-evt [π process?]
                        [#:on-take on-take (-> any/c any/c) values]
                        ) evt?]{
@@ -378,22 +416,6 @@ Processes are created explicitly by the @racket[process] function. Use
   from @racket[π] and applies @racket[on-emit] to it, then emits the result.
   Becomes @racket-tech{ready for synchronization} when another process accepts
   the emitted value.
-}
-
-@defproc[(proxy-evt [π process?]
-                    [#:on-take on-take (-> any/c any/c) values]
-                    [#:on-emit on-emit (-> any/c any/c) values])
-         evt?]{
-  Returns a constant @racket-tech{synchronizable event} equivalent to
-
-  @racketblock[
-    (choice-evt
-     (proxy-to-evt π #:on-take on-take)
-     (proxy-from-evt π #:on-emit on-emit))
-  ]
-
-  Becomes @racket-tech{ready for synchronization} when @racket[π] is dead. The
-  @racket-tech{synchronization result} is @racket[π].
 }
 
 @defproc[(sink [proc (-> any/c any)]) process?]{

@@ -23,12 +23,18 @@
               (#:on-take (-> any/c any/c)
                #:on-emit (-> any/c any/c))
               process?)]
-  [proxy-to-evt (->* (process?) (#:on-take (-> any/c any/c)) evt?)]
-  [proxy-from-evt (->* (process?) (#:on-emit (-> any/c any/c)) evt?)]
+  [proxy-to (->* (process?)
+                 (#:on-take (-> any/c any/c))
+                 process?)]
+  [proxy-from (->* (process?)
+                   (#:on-emit (-> any/c any/c))
+                   process?)]
   [proxy-evt (->* (process?)
                   (#:on-take (-> any/c any/c)
                    #:on-emit (-> any/c any/c))
                   evt?)]
+  [proxy-to-evt (->* (process?) (#:on-take (-> any/c any/c)) evt?)]
+  [proxy-from-evt (->* (process?) (#:on-emit (-> any/c any/c)) evt?)]
   [sink (-> (-> any/c any) process?)]
   [source (-> (-> any/c) process?)]
   [stream (->* (process? process?)
@@ -104,16 +110,28 @@
    #:on-stop (λ () (stop π))
    #:command (λ vs (apply π vs))))
 
-(define (proxy-to-evt π #:on-take [on-take values])
-  (evt-loop (λ _ (replace-evt (take-evt) (λ (v) (give-evt π (on-take v)))))))
+(define (proxy-to π #:on-take [on-take values])
+  (start
+   (process (λ () (sync (proxy-to-evt π #:on-take on-take))))
+   #:on-stop (λ () (stop π))
+   #:command (λ vs (apply π vs))))
 
-(define (proxy-from-evt π #:on-emit [on-emit values])
-  (evt-loop (λ _ (replace-evt (recv-evt π) (λ (v) (emit-evt (on-emit v)))))))
+(define (proxy-from π #:on-emit [on-emit values])
+  (start
+   (process (λ () (sync (proxy-from-evt π #:on-emit on-emit))))
+   #:on-stop (λ () (stop π))
+   #:command (λ vs (apply π vs))))
 
 (define (proxy-evt π #:on-take [on-take values] #:on-emit [on-emit values])
   (choice-evt (proxy-to-evt π #:on-take on-take)
               (proxy-from-evt π #:on-emit on-emit)
               π))
+
+(define (proxy-to-evt π #:on-take [on-take values])
+  (evt-loop (λ _ (replace-evt (take-evt) (λ (v) (give-evt π (on-take v)))))))
+
+(define (proxy-from-evt π #:on-emit [on-emit values])
+  (evt-loop (λ _ (replace-evt (recv-evt π) (λ (v) (emit-evt (on-emit v)))))))
 
 (define (sink proc)
   (process (λ () (forever (proc (take))))))
