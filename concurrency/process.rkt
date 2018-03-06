@@ -95,8 +95,7 @@
                               [(λ _ #t) (λ (e) (set-box! raised (list e)) (die))])
                 (parameterize-break #t
                   (thunk))))))
-        (parameterize-break #f
-          (for ([proc on-stop-hook]) (proc))))
+        (for ([proc on-stop-hook]) (proc)))
       (parameterize-break #f
         (for ([proc on-dead-hook]) (proc))))
     (define π
