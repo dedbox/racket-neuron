@@ -2,6 +2,7 @@
 
 (require neuron/concurrency/process
          neuron/concurrency/ipc
+         neuron/evaluation
          racket/contract/base
          racket/dict
          racket/function
@@ -129,31 +130,30 @@
                 (proxy-from-evt src #:on-emit on-emit)
                 (handle-evt (evt-set snk src) die)))))
    #:on-stop (λ () (stop snk) (stop src))
-   #:command (λ vs
-               (cond [(equal? vs '(sink)) snk]
-                     [(equal? vs '(source)) src]
-                     [else unhandled]))))
+   #:command (bind ([sink snk]
+                    [source src])
+                   #:else unhandled)))
 
 (define (service key-proc #:on-drop [on-drop void])
   (define latch (make-semaphore 0))
   (define peers (make-hash))
-  (define (add π)
+  (define (add-peer π)
     (define key (key-proc π))
     (hash-set! peers key π)
     (semaphore-post latch)
     key)
-  (define (get key)
+  (define (get-peer key)
     (hash-ref peers key #f))
-  (define (drop key)
-    (define π (get key))
-    (and (get key)
+  (define (drop-peer key)
+    (define π (get-peer key))
+    (and π
          (hash-remove! peers key)
          (on-drop key π)
          (semaphore-post latch)
          #t))
   (define (peer-give-evt msg)
     (when ((list/c any/c any/c) msg)
-      (define π (get (car msg)))
+      (define π (get-peer (car msg)))
       (and π (give-evt π (cadr msg)))))
   (define (peer-emit-evt key π)
     (replace-evt (recv-evt π) (λ (v) (emit-evt (list key v)))))
@@ -164,13 +164,12 @@
               (sync
                (evt-loop (λ _ (evt-series (λ _ (take-evt)) peer-give-evt)))
                (evt-loop (λ _ (choice-evt latch (next-peer-evt)))))))
-   #:on-stop (λ () (for-each drop (dict-keys (hash->list peers))))
-   #:command (λ vs
-               (cond [(equal? vs '(peers)) (hash->list peers)]
-                     [((list/c 'add process?) vs) (add (cadr vs))]
-                     [((list/c 'get any/c) vs) (get (cadr vs))]
-                     [((list/c 'drop any/c) vs) (drop (cadr vs))]
-                     [else unhandled]))))
+   #:on-stop (λ () (for-each drop-peer (dict-keys (hash->list peers))))
+   #:command (bind ([peers (hash->list peers)]
+                    [add add-peer]
+                    [get get-peer]
+                    [drop drop-peer])
+                   #:else unhandled)))
 
 (define (simulator proc #:rate [rate 10])
   (process (λ ()
@@ -200,12 +199,13 @@
        (evt-loop (λ _ (evt-series (λ _ (recv-evt π2)) (curry give-evt π1))))
        (handle-evt (choice-evt π1 π2) die))))
    #:on-stop (λ () (stop π1) (stop π2))
-   #:command (λ vs
-               (cond [(equal? vs '(1)) π1]
-                     [(equal? vs '(2)) π2]
-                     [else
-                      (define result (cmd π1 vs))
-                      (if (eq? result unhandled) (cmd π2 vs) result)]))))
+   #:command (bind ([1 π1]
+                    [2 π2])
+                   #:match
+                   ([v (let ([result (command π1 (list v))])
+                         (if (eq? result unhandled)
+                             (command π2 (list v))
+                             result))]))))
 
 (define (managed π
                  #:pre-take-eof [pre-take-eof stop]

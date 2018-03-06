@@ -3,6 +3,7 @@
 (require neuron/concurrency
          neuron/data-flow/codec
          neuron/data-flow/socket
+         neuron/evaluation
          racket/contract/base
          racket/function
          racket/tcp)
@@ -47,7 +48,8 @@
   (define addr (apply-values list (tcp-addresses listener #t)))
   (start (source (λ () (apply-values tcp-socket (tcp-accept listener))))
          #:on-dead (λ () (tcp-close listener))
-         #:command (λ vs (if (equal? vs '(address)) addr unhandled))))
+         #:command (bind ([address addr])
+                         #:else unhandled)))
 
 (define (tcp-service make-codec srv
                      #:on-accept [on-accept void]
@@ -74,11 +76,10 @@
        (evt-loop (λ _ peer-emit-evt)))))
    #:on-stop (λ () (stop svc))
    #:on-dead (λ () (kill svc))
-   #:command (λ vs
-               (cond [(equal? vs '(peers)) (svc 'peers)]
-                     [((list/c 'get any/c) vs) (svc 'get (cadr vs))]
-                     [((list/c 'drop any/c) vs) (svc 'drop (cadr vs))]
-                     [else unhandled]))))
+   #:command (bind ([peers (svc 'peers)]
+                    [(get ,addr) ((svc 'get) addr)]
+                    [(drop ,addr) ((svc 'drop) addr)])
+                   #:else unhandled)))
 
 (module+ test
   (require rackunit

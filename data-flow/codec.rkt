@@ -3,6 +3,7 @@
 (require
  neuron/concurrency
  neuron/data-flow/socket
+ neuron/evaluation
  json
  racket/contract/base
  racket/splicing)
@@ -62,10 +63,9 @@
                               (forever (emit (prs sock))))))
                   (handle-evt sock (λ _ (emit eof)))))))
      #:on-stop (λ () (close-socket sock))
-     #:command (λ vs
-                 (cond [(equal? vs '(parser)) prs]
-                       [(equal? vs '(socket)) sock]
-                       [else unhandled])))))
+     #:command (bind ([parser prs]
+                      [socket sock])
+                     #:else unhandled))))
 
 (define (encoder prn)
   (λ (sock)
@@ -78,10 +78,9 @@
                               (forever (prn (take) sock)))))
                   (handle-evt sock die)))))
      #:on-stop (λ () (close-socket sock))
-     #:command (λ vs
-                 (cond [(equal? vs '(printer)) prn]
-                       [(equal? vs '(socket)) sock]
-                       [else unhandled])))))
+     #:command (bind ([printer prn]
+                      [socket sock])
+                     #:else unhandled))))
 
 (define (codec prs prn)
   (define make-decoder (decoder prs))
@@ -92,11 +91,10 @@
     (start
      (stream enc dec)
      #:on-stop (λ () (stop enc) (stop dec))
-     #:command (λ vs
-                 (cond [(equal? vs '(decoder)) dec]
-                       [(equal? vs '(encoder)) enc]
-                       [(equal? vs '(socket)) sock]
-                       [else unhandled])))))
+     #:command (bind ([decoder dec]
+                      [encoder enc]
+                      [socket sock])
+                     #:else unhandled))))
 
 (define (make-codec-type name prs prn)
   (values

@@ -32,12 +32,14 @@ every procedure returns @racket[unhandled] or the list is empty,
 @examples[
   #:eval neuron-evaluator
   #:label #f
-  (define (dispatch k . _)
-    (hash-ref (hasheq 'A 1 'B (λ _ 2)) k unhandled))
-  (define π (start (process deadlock) #:command dispatch))
+  (define π
+    (start (process deadlock)
+           #:command (bind ([A 1]
+                            [B (λ _ 2)])
+                           #:else unhandled)))
   (π 'A)
   ((π 'B) 5)
-  (eval:error (π 'x 'y))
+  (eval:error (π '(x y)))
 ]
 
 A process can be used as a @racket-tech{synchronizable event}. A process is
@@ -60,8 +62,10 @@ Processes are created explicitly by the @racket[process] function. Use
 @racket[start] to install hooks and handlers.
 
 @defthing[unhandled symbol?]{
-  Return this value from your @tech{command handler} to indicate that it will
-  not handle a command.
+
+  Return this value from a @tech{command handler} to indicate that it will not
+  handle a command.
+
 }
 
 @defstruct*[unhandled-command ([process process?]
@@ -528,12 +532,12 @@ Processes are created explicitly by the @racket[process] function. Use
     (define svc
       (service (λ (π) (π))
                #:on-drop (λ (k _) (writeln k))))
-    (svc 'add (start (server (curry + 1)) #:command (λ _ 1)))
-    (svc 'add (start (server (curry + 2)) #:command (λ _ 2)))
-    (svc 'add (start (server (curry + 3)) #:command (λ _ 3)))
+    ((svc 'add) (start (server (curry + 1)) #:command (λ _ 1)))
+    ((svc 'add) (start (server (curry + 2)) #:command (λ _ 2)))
+    ((svc 'add) (start (server (curry + 3)) #:command (λ _ 3)))
     (call svc (list 1 5))
     (call svc (list 3 5))
-    (svc 'drop 2)
+    ((svc 'drop) 2)
     (stop svc)
   ]
 }

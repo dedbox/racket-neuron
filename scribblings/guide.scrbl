@@ -304,7 +304,6 @@ methods.
 
 @tech{Evaluators} and @tech{steppers} can be used as @tech{command handlers},
 enabling @tech{term}-based DSLs for programmable @tech{process} interactions.
-This technique is used for every command handler provided by Neuron.
 
 @subsection{Unbuffered Channels}
 
