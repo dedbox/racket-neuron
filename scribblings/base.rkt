@@ -51,7 +51,8 @@
 (define neuron-evaluator
   (parameterize ([sandbox-output 'string]
                  [sandbox-error-output 'string]
-                 [sandbox-memory-limit 50])
+                 [sandbox-memory-limit 50]
+                 [sandbox-make-inspector current-inspector])
     (make-evaluator 'racket #:requires '(neuron))))
 
 (random-seed 1)
