@@ -109,7 +109,10 @@ Processes are created explicitly by the @racket[process] function. Use
 }
 
 @defproc[(command [π process?] [v any/c] ...) any]{
-  Applies the @tech{command handler} of @racket[π] to @racket[v]s.
+
+  Applies the @tech{command handler} of @racket[π] to @racket[v]s and returns
+  the result. Does not raise @racket[unhandled-command].
+
 }
 
 @defproc[(stop [π process?]) void?]{

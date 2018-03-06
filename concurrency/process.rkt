@@ -14,7 +14,7 @@
   [process (-> (-> any) process?)]
   [process-in-ch (-> process? channel?)]
   [process-out-ch (-> process? channel?)]
-  [command (-> process? any/c ... any)]
+  [command (-> process? (listof any/c) any)]
   [stop (-> process? void?)]
   [kill (-> process? void?)]
   [wait (-> process? void?)]
@@ -35,7 +35,11 @@
   #:constructor-name make-process
   #:omit-define-syntaxes
   #:property prop:evt (λ (π) (wait-evt π))
-  #:property prop:procedure (λ (π . vs) (command π vs)))
+  #:property prop:procedure (λ (π . vs)
+                              (define result (command π vs))
+                              (if (eq? result unhandled)
+                                  (raise (unhandled-command π vs))
+                                  result)))
 
 (define (wait-evt π)
   (handle-evt
@@ -49,7 +53,7 @@
 (define (command π vs)
   (let loop ([handlers (process-command π)])
     (if (null? handlers)
-        (raise (unhandled-command π vs))
+        unhandled
         (let ([result (apply (car handlers) vs)])
           (if (equal? result unhandled)
               (loop (cdr handlers))
