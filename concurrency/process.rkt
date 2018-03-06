@@ -14,15 +14,16 @@
   [process (-> (-> any) process?)]
   [process-in-ch (-> process? channel?)]
   [process-out-ch (-> process? channel?)]
-  [current-process (-> process?)]
-  [quit (->* () #:rest (listof any/c) void?)]
-  [die (->* () #:rest (listof any/c) void?)]
-  [deadlock (->* () #:rest (listof any/c) void?)]
+  [command (-> process? any/c ... any)]
   [stop (-> process? void?)]
   [kill (-> process? void?)]
   [wait (-> process? void?)]
   [dead? (-> process? boolean?)]
-  [alive? (-> process? boolean?)]))
+  [alive? (-> process? boolean?)]
+  [current-process (-> process?)]
+  [quit (->* () #:rest (listof any/c) void?)]
+  [die (->* () #:rest (listof any/c) void?)]
+  [deadlock (->* () #:rest (listof any/c) void?)]))
 
 (define unhandled
   (string->unreadable-symbol "unhandled"))
@@ -34,7 +35,7 @@
   #:constructor-name make-process
   #:omit-define-syntaxes
   #:property prop:evt (λ (π) (wait-evt π))
-  #:property prop:procedure (λ (π . vs) (cmd π vs)))
+  #:property prop:procedure (λ (π . vs) (command π vs)))
 
 (define (wait-evt π)
   (handle-evt
@@ -45,7 +46,7 @@
        (raise (car raised)))
      π)))
 
-(define (cmd π vs)
+(define (command π vs)
   (let loop ([handlers (process-command π)])
     (if (null? handlers)
         (raise (unhandled-command π vs))

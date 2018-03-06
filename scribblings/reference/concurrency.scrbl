@@ -104,6 +104,10 @@ Processes are created explicitly by the @racket[process] function. Use
   ]
 }
 
+@defproc[(command [π process?] [v any/c] ...) any]{
+  Applies the @tech{command handler} of @racket[π] to @racket[v]s.
+}
+
 @defproc[(stop [π process?]) void?]{
   Gracefully terminates the execution of @racket[π] if it is running. Blocks
   until @racket[π] is dead. If @racket[π] is already dead, @racket[stop] has
