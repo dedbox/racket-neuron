@@ -164,6 +164,7 @@
               (sync
                (evt-loop (λ _ (evt-series (λ _ (take-evt)) peer-give-evt)))
                (evt-loop (λ _ (choice-evt latch (next-peer-evt)))))))
+   #:on-stop (λ () (for-each drop (dict-keys (hash->list peers))))
    #:command (λ vs
                (cond [(equal? vs '(peers)) (hash->list peers)]
                      [((list/c 'add process?) vs) (add (cadr vs))]
