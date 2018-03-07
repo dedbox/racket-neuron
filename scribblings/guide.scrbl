@@ -10,11 +10,11 @@ belong in @secref{the Neuron Reference}.
 
 @section{Introduction}
 
-Neuron is a series of Racket libraries that provide a spectrum of
-functionality related to the creation, operation, integration, and evolution
-of decentralized run time environments and applications. At its core is a
-hybrid communication-based concurrency model and a structural pattern-based
-DSL for composable evaluators.
+Neuron is a series of Racket libraries that provide a consistent API over a
+spectrum of functionality related to the creation, operation, integration, and
+evolution of concurrent, distributed, and decentralized run time environments
+and applications. At its core is a communication-based concurrency model and a
+structural pattern-based DSL for working with composable evaluators.
 
 @centered[
   @vc-append[
@@ -87,9 +87,6 @@ precisely, an evaluator is a function that applies a @tech{stepper} to a
 
 @subsection{Terms}
 
-@margin-note{In the future, terms may become syntax objects to enable source
-tracking.}
-
 A @deftech{term} is defined recursively as a literal value or a serializable
 composite of sub-terms. For example, the symbol
 
@@ -154,12 +151,11 @@ a @tech{term}-based small-@tech{stepper} for the untyped lambda calculus.
 
 @section{Communication-based Concurrency}
 
-Neuron uses a concurrency model based on lightweight actor-style
-@tech{process}es communicating over first-class named synchronous
-@racket-tech{channels}. A @tech{process} is a like a thread that can clean up
-after itself and keep ``secrets.'' Concretely, processes imbue
-@racket-tech{threads} with life cycle hooks and two orthogonal lines of
-communication.
+Neuron uses a concurrency model of lightweight @tech{process}es communicating
+over first-class named synchronous @racket-tech{channels}. @tech{Process}es
+extend @racket-tech{threads} with support for life cycle hooks and two
+orthogonal lines of communication. In other words, a @tech{process} is like a
+@racket-tech{thread} that can clean up after itself and keep ``secrets.''
 
 @subsection{The Process Life Cycle}
 
@@ -231,10 +227,10 @@ blocks until the new @tech{process} is alive and a fresh @tech{process
 descriptor} for it has been returned.
 
 A @tech{process} stays alive until its thread of execution terminates. A
-@tech{process} can end itself, either by reaching the end of its program or by
-issuing a @racket[quit] or @racket[die] command. A @tech{process} can also use
-the @racket[stop] and @racket[kill] commands to end any @tech{process} it
-holds a @tech{process descriptor} for.
+@tech{process} can terminate itself, either by reaching the end of its program
+or by issuing a @racket[quit] or @racket[die] command. A @tech{process} can
+also use the @racket[stop] or @racket[kill] command to terminate any
+@tech{process} it holds a @tech{process descriptor} for.
 
 When a @tech{process} is terminated by @racket[quit] or @racket[stop], it
 enters the stopping state while it calls its @tech{on-stop hook}. When a
@@ -266,9 +262,9 @@ when stopped---but not when killed, so it can be swapped out mid-stream or
 restarted after errors have been handled.
 
 The @racket[deadlock] function waits for the current @tech{process} to
-terminate, causing the computation to diverge. It can be used as a termination
-``latch'' to prevent the current @tech{process} from ending until stopped or
-killed.
+terminate, allowing the computation to diverge efficiently. It can be used as
+a termination ``latch'' to prevent the current @tech{process} from ending
+until stopped or killed.
 
 @examples[
   #:eval neuron-evaluator
@@ -310,10 +306,10 @@ enabling @tech{term}-based DSLs for out-of-band @tech{process} control.
 @subsection{Unbuffered Channels}
 
 @tech{Process}es can also communicate by exchanging values through their
-@tech{input channels} and @tech{output channels}. Most of the @tech{process}
-constructors provided by Neuron are for creating channel-based data flow
-networks, hence the distinction between ``in-band'' channel-mediated exchanges
-versus ``out-of-band'' commands.
+@tech{input channel} and @tech{output channel}. Most of the @tech{process}
+constructors provided by Neuron are designed for channel-based data flow
+networking, hence the distinction between ``in-band'' channel-mediated
+exchanges versus ``out-of-band'' command invocations.
 
 The @racket[server] command creates a @tech{process} that follows the
 request-reply pattern for in-band exchanges. This is useful for providing
@@ -348,18 +344,18 @@ revocable access to others.
 @examples[
   #:eval neuron-evaluator
   #:label "Example of revocation:"
-  (define π1 (sexp-codec (string-socket #:in "12 34 56")))
-  (define π2 (proxy π1))
-  (recv π2)
+  (define π (sexp-codec (string-socket #:in "12 34 56")))
+  (define π-ref (proxy π))
+  (recv π-ref)
   (code:line
-   (code:comment "later, perhaps in another process")
-   (kill π2))
+   (code:comment "after sharing π-ref with another process")
+   (kill π-ref))
   (code:line
-   (code:comment "then π2 no longer works")
-   (try-recv π2))
+   (code:comment "π-ref no longer works")
+   (try-recv π-ref))
   (code:line
-   (code:comment "but π1 still does")
-   (recv π1))
+   (code:comment "but π still does")
+   (recv π))
 ]
 
 @subsection{Information Flow Control}
