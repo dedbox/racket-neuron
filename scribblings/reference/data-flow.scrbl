@@ -9,13 +9,12 @@
 @section{Serial Communication}
 
 A @deftech{socket} is the local end of a bi-directional serial communications
-channel. Each socket holds an @racket-tech{input port} and an
-@racket-tech{output port}.
+channel. Each socket holds an @rtech{input port} and an @rtech{output port}.
 
-A socket can be used as a @racket-tech{synchronizable event}. A socket is
-@racket-tech{ready for synchronization} when the ports it holds have closed.
-Sockets do not support half-open connections---when either port closes, the
-other port is closed immediately.
+A socket can be used as a @rtech{synchronizable event}. A socket is
+@rtech{ready for synchronization} when the ports it holds have closed. Sockets
+do not support half-open connections---when either port closes, the other port
+is closed immediately.
 
 @defproc[(socket? [v any/c]) boolean?]{
   Returns @racket[#t] if @racket[v] is a @racket[socket], @racket[#f]
@@ -23,10 +22,12 @@ other port is closed immediately.
 }
 
 @defproc[(socket [in-port input-port?] [out-port output-port?]) socket?]{
+
   Returns a @tech{socket}. Serves as @racket[out-port] when used as an
-  @racket-tech{output port}, and as @racket[in-port] when used as an
-  @racket-tech{input port} or with procedures that take both kinds, such as
+  @rtech{output port}, and as @racket[in-port] when used as an @rtech{input
+  port} or with procedures that take both kinds, such as
   @racket[file-position].
+
 }
 
 @defproc[(close-socket [sock socket?]) void?]{
@@ -50,9 +51,9 @@ other port is closed immediately.
   @defproc[(string-socket [#:in str string? ""]
                           [#:out out? boolean? #f]) socket?]
 )]{
+
   Returns a @tech{socket} that inputs from @racket[str] and, if @racket[out?]
-  is @racket[#t], accumulates output in a fresh output @racket-tech{string
-  port}.
+  is @racket[#t], accumulates output in a fresh output @rtech{string port}.
 
   @examples[
     #:eval neuron-evaluator
@@ -96,23 +97,31 @@ to a socket. The @tech{source} is called a @deftech{decoder}; it uses a
 @deftech{parser} procedure to de-serialize values from a socket.
 
 @defthing[parser/c contract? #:value (-> socket? any/c)]{
-  Use this @racket-tech{function contract} to indicate that a function is a
+
+  Use this @rtech{function contract} to indicate that a function is a
   @tech{parser}.
+
 }
 
 @defthing[printer/c contract? #:value (-> any/c socket? any)]{
-  Use this @racket-tech{function contract} to indicate that a function is a
+
+  Use this @rtech{function contract} to indicate that a function is a
   @tech{printer}.
+
 }
 
 @defthing[codec/c contract? #:value (-> socket? process?)]{
-  Use this @racket-tech{function contract} to indicate that a function makes
+
+  Use this @rtech{function contract} to indicate that a function makes
   @tech{decoders}, @tech{encoders}, or @tech{codecs}.
+
 }
 
 @defproc[(flushed [prn printer/c]) printer/c]{
+
   Returns a @tech{printer} that applies @racket[prn] to a @tech{socket} and
-  then flushes its @racket-tech{output port}.
+  then flushes its @rtech{output port}.
+
 }
 
 @defproc[(decoder [prs parser/c]) codec/c]{

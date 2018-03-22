@@ -6,15 +6,14 @@
 
 @(defmodule neuron/concurrency #:packages ("neuron"))
 
-A @deftech{process} is a @racket-tech{thread}-like concurrency primitive.
-Processes are made from @racket-tech{threads} by replacing the
-@seclink["threadmbox" #:doc '(lib
-"scribblings/reference/reference.scrbl")]{thread mailbox} with a few other
-features:
+A @deftech{process} is a @rtech{thread}-like concurrency primitive. Processes
+are made from @rtech{threads} by replacing the @seclink["threadmbox" #:doc
+'(lib "scribblings/reference/reference.scrbl")]{thread mailbox} with a few
+other features:
 
 @itemlist[
-  @item{Two unbuffered @racket-tech{channels}: an @deftech{input channel} and
-    an @deftech{output channel}.}
+  @item{Two unbuffered @rtech{channels}: an @deftech{input channel} and an
+    @deftech{output channel}.}
   @item{An out-of-band @tech{command handler}.}
   @item{An @deftech{on-stop hook} that is called when a process ends
     gracefully, but not when it dies abruptly.}
@@ -42,8 +41,8 @@ every procedure returns @racket[unhandled] or the list is empty,
   (eval:error (π '(x y)))
 ]
 
-A process can be used as a @racket-tech{synchronizable event}. A process is
-@racket-tech{ready for synchronization} when @racket[dead?] would return
+A process can be used as a @rtech{synchronizable event}. A process is
+@rtech{ready for synchronization} when @racket[dead?] would return
 @racket[#t]. The synchronization result is the process itself.
 
 Unhandled exceptions are fatal. Attempting to synchronize a process killed by
@@ -128,7 +127,7 @@ Processes are created explicitly by the @racket[process] function. Use
 }
 
 @defproc[(wait [π process?]) void? #:value (void (sync π))]{
-  Blocks until @racket[π] is @racket-tech{ready for synchronization}. 
+  Blocks until @racket[π] is @rtech{ready for synchronization}. 
 }
 
 @defproc[(dead? [π process?]) boolean?]{
@@ -196,32 +195,39 @@ Processes are created explicitly by the @racket[process] function. Use
 }
 
 @defproc[(give-evt [π process?] [v any/c (void)]) evt?]{
-  Returns a fresh @racket-tech{synchronizable event} that becomes
-  @racket-tech{ready for synchronization} when @racket[π] is ready to accept
-  the value @racket[v] on its @tech{input channel}, or until @racket[π] is
-  dead. The @racket-tech{synchronization result} is @racket[#t] if @racket[π]
-  accepted @racket[v], @racket[#f] otherwise.
+
+  Returns a fresh @rtech{synchronizable event} that becomes @rtech{ready for
+  synchronization} when @racket[π] is ready to accept the value @racket[v] on
+  its @tech{input channel}, or until @racket[π] is dead. The
+  @rtech{synchronization result} is @racket[#t] if @racket[π] accepted
+  @racket[v], @racket[#f] otherwise.
+
 }
 
 @defproc[(take-evt) evt?]{
-  Returns a constant @racket-tech{synchronizable event} that becomes
-  @racket-tech{ready for synchronization} when a sender is ready to provide a
-  value on the @tech{input channel} of the current process. The
-  @racket-tech{synchronization result} is the provided value.
+
+  Returns a constant @rtech{synchronizable event} that becomes @rtech{ready
+  for synchronization} when a sender is ready to provide a value on the
+  @tech{input channel} of the current process. The @rtech{synchronization
+  result} is the provided value.
+
 }
 
 @defproc[(emit-evt [v any/c (void)]) evt?]{
-  Returns a fresh @racket-tech{synchronizable event} that becomes
-  @racket-tech{ready for synchronization} when a receiver is ready to accept
-  the value @racket[v] through the @tech{output channel} of the current
-  process.
+
+  Returns a fresh @rtech{synchronizable event} that becomes @rtech{ready for
+  synchronization} when a receiver is ready to accept the value @racket[v]
+  through the @tech{output channel} of the current process.
+
 }
 
 @defproc[(recv-evt [π process?]) evt?]{
-  Returns a constant @racket-tech{synchronizable event} that becomes
-  @racket-tech{ready for synchronization} when @racket[π] is ready to provide
-  a value through its @tech{output channel}, or until @racket[π] is dead. The
-  @racket-tech{synchronization result} is the provided value or @racket[eof].
+
+  Returns a constant @rtech{synchronizable event} that becomes @rtech{ready
+  for synchronization} when @racket[π] is ready to provide a value through its
+  @tech{output channel}, or until @racket[π] is dead. The
+  @rtech{synchronization result} is the provided value or @racket[eof].
+
 }
 
 @section{Control Flow}
@@ -252,11 +258,11 @@ Processes are created explicitly by the @racket[process] function. Use
 }
 
 @defproc[(evt-set [evt evt?] ...) evt?]{
-  Returns a fresh @racket-tech{synchronizable event} that becomes
-  @racket-tech{ready for synchronization} when all @racket[evt]s are
-  @racket-tech{ready for synchronization}. The @racket-tech{synchronization
-  result} is a list of the @racket-tech{synchronization results} of
-  @racket[evt]s in the order specified.
+
+  Returns a fresh @rtech{synchronizable event} that becomes @rtech{ready for
+  synchronization} when all @racket[evt]s are @rtech{ready for
+  synchronization}. The @rtech{synchronization result} is a list of the
+  @rtech{synchronization results} of @racket[evt]s in the order specified.
 
   @examples[
     #:eval neuron-evaluator
@@ -268,13 +274,20 @@ Processes are created explicitly by the @racket[process] function. Use
   ]
 }
 
-@defproc[(evt-sequence [make-evt (-> evt?)] ...+) evt?]{
-  Returns a fresh @racket-tech{synchronizable event} that becomes
-  @racket-tech{ready for synchronization} when all events generated by
-  @racket[make-evt]s are @racket-tech{ready for synchronization}. Calls each
-  @racket[make-evt] in the order specified and immediately @racket[sync]s the
-  result. The @racket-tech{synchronization result} is the same as the
-  @racket-tech{synchronization result} of the last event generated.
+@defproc[
+  (evt-sequence [#:then make-result (-> any/c any) values]
+                [make-evt (-> evt?)] ...+)
+  evt?
+]{
+
+  Returns a fresh @rtech{synchronizable event} that becomes @rtech{ready for
+  synchronization} when all events generated by @racket[make-evt]s are
+  @rtech{ready for synchronization}. Calls each @racket[make-evt] in the order
+  specified and immediately @racket[sync]s the result. Wtaps the last
+  @racket[make-evt] in a @racket[handle-evt] that applies the
+  @rtech{synchronization result} of the previous event to
+  @racket[make-result]. The @rtech{synchronization result} of the sequence is
+  the @rtech{synchronization result} of its final event.
 
   @examples[
     #:eval neuron-evaluator
@@ -286,17 +299,22 @@ Processes are created explicitly by the @racket[process] function. Use
   ]
 }
 
-@defproc[(evt-series [#:init init any/c (void)]
-                     [make-evt (-> any/c evt?)] ...+
-                     ) evt?]{
-  Returns a fresh @racket-tech{synchronizable event} that becomes
-  @racket-tech{ready for synchronization} when all events generated by
-  @racket[make-evt]s have become @racket-tech{ready for synchronization}.
-  Calls each @racket[make-evt] in the order specified and immediately
-  @racket[sync]s the result. Applies @racket[make-evt] first to @racket[init],
-  then to the @racket-tech{synchronization result} of the previous event. The
-  @racket-tech{synchronization result} is the same as the
-  @racket-tech{synchronization result} of the last event generated.
+@defproc[
+  (evt-series [#:init init any/c (void)]
+              [#:then make-result (-> any/c any) values]
+              [make-evt (-> any/c evt?)] ...+)
+  evt?
+]{
+
+  Returns a fresh @rtech{synchronizable event} that becomes @rtech{ready for
+  synchronization} when all events generated by @racket[make-evt]s have become
+  @rtech{ready for synchronization}. Calls each @racket[make-evt] in the order
+  specified and immediately @racket[sync]s the result. Applies
+  @racket[make-evt] first to @racket[init], then to the @rtech{synchronization
+  result} of the previous event. Wraps the last #racket[make-evt] in a
+  @racket[handle-evt] that applies the @rtech{synchronization result} of the
+  previous event to @racket[make-result]. The @rtech{synchronization result}
+  of the series is the @rtech{synchronization result} of its final event.
 
   @examples[
     #:eval neuron-evaluator
@@ -309,13 +327,15 @@ Processes are created explicitly by the @racket[process] function. Use
   ]
 }
 
-@defproc[(evt-loop [#:init init any/c (void)]
-                   [next-evt (-> any/c evt?)]) evt?]{
-  Returns a fresh @racket-tech{synchronizable event} that is never
-  @racket-tech{ready for synchronization}. Repeatedly calls @racket[next-evt]
-  and immediately @racket[sync]s the result. Applies @racket[next-evt] first
-  to @racket[init], then to the @racket-tech{synchronization result} of the
-  previous event.
+@defproc[
+  (evt-loop [#:init init any/c (void)]
+            [next-evt (-> any/c evt?)]) evt?
+]{
+
+  Returns a fresh @rtech{synchronizable event} that is never @rtech{ready for
+  synchronization}. Repeatedly calls @racket[next-evt] and immediately
+  @racket[sync]s the result. Applies @racket[next-evt] first to @racket[init],
+  then to the @rtech{synchronization result} of the previous event.
 
   @examples[
     #:eval neuron-evaluator
@@ -387,7 +407,8 @@ Processes are created explicitly by the @racket[process] function. Use
                     [#:on-take on-take (-> any/c any/c) values]
                     [#:on-emit on-emit (-> any/c any/c) values])
          evt?]{
-  Returns a constant @racket-tech{synchronizable event} equivalent to
+
+  Returns a constant @rtech{synchronizable event} equivalent to
 
   @racketblock[
     (choice-evt
@@ -395,27 +416,32 @@ Processes are created explicitly by the @racket[process] function. Use
      (proxy-from-evt π #:on-emit on-emit))
   ]
 
-  Becomes @racket-tech{ready for synchronization} when @racket[π] is dead. The
-  @racket-tech{synchronization result} is @racket[π].
+  Becomes @rtech{ready for synchronization} when @racket[π] is dead. The
+  @rtech{synchronization result} is @racket[π].
+
 }
 
 @defproc[(proxy-to-evt [π process?]
                        [#:on-take on-take (-> any/c any/c) values]
                        ) evt?]{
-  Returns a constant @racket-tech{synchronizable event} that takes a value and
+
+  Returns a constant @rtech{synchronizable event} that takes a value and
   applies @racket[on-take] to it, then gives the result to @racket[π]. Becomes
-  @racket-tech{ready for synchronization} when @racket[π] either accepts the
-  transformed value or dies. The @racket-tech{synchronization result} is
-  @racket[#t] if @racket[π] accepts the value, @racket[#f] otherwise.
+  @rtech{ready for synchronization} when @racket[π] either accepts the
+  transformed value or dies. The @rtech{synchronization result} is @racket[#t]
+  if @racket[π] accepts the value, @racket[#f] otherwise.
+
 }
 
 @defproc[(proxy-from-evt [π process?]
                          [#:on-emit on-emit (-> any/c any/c) values]
                          ) evt?]{
-  Returns a constant @racket-tech{synchronizable event} that receives a value
-  from @racket[π] and applies @racket[on-emit] to it, then emits the result.
-  Becomes @racket-tech{ready for synchronization} when another process accepts
-  the emitted value.
+
+  Returns a constant @rtech{synchronizable event} that receives a value from
+  @racket[π] and applies @racket[on-emit] to it, then emits the result.
+  Becomes @rtech{ready for synchronization} when another process accepts the
+  emitted value.
+
 }
 
 @defproc[(sink [proc (-> any/c any)]) process?]{
@@ -593,7 +619,9 @@ Processes are created explicitly by the @racket[process] function. Use
 }
 
 @defproc[(shutdown-evt [π process?]) evt?]{
-  Gives @racket[eof] to @racket[π] and returns a @racket-tech{synchronizable
-  event} that becomes @racket-tech{ready for synchronization} when @racket[π]
-  dies. The @racket-tech{synchronization result} is @racket[π].
+
+  Gives @racket[eof] to @racket[π] and returns a @rtech{synchronizable event}
+  that becomes @rtech{ready for synchronization} when @racket[π] dies. The
+  @rtech{synchronization result} is @racket[π].
+
 }

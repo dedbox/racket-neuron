@@ -151,11 +151,11 @@ a @tech{term}-based small-@tech{stepper} for the untyped lambda calculus.
 
 @section{Communication-based Concurrency}
 
-Neuron uses a concurrency model of lightweight @tech{process}es communicating
-over first-class named synchronous @racket-tech{channels}. @tech{Process}es
-extend @racket-tech{threads} with support for life cycle hooks and two
-orthogonal lines of communication. In other words, a @tech{process} is like a
-@racket-tech{thread} that can clean up after itself and keep ``secrets.''
+Neuron uses a concurrency model of lightweight processes communicating over
+first-class named synchronous @rtech{channels}. @tech{Process}es extend
+@rtech{threads} with support for life cycle hooks and two orthogonal lines of
+communication. In other words, a @tech{process} is like a @rtech{thread} that
+can clean up after itself and keep ``secrets.''
 
 @subsection{The Process Life Cycle}
 
@@ -255,11 +255,11 @@ network listeners and @racket[kill] sub-@tech{process}es. This @tech{hook}
 runs unconditionally and can't be canceled.
 
 The @tech{on-stop hook} is for extra or optional clean-up tasks. Neuron uses
-the @tech{on-stop hook} to close @racket-tech{ports}, terminate network
-connections, and @racket[stop] sub-@tech{process}es. For example, a
-@tech{codec} closes its @racket-tech{input port} and @racket-tech{output port}
-when stopped---but not when killed, so it can be swapped out mid-stream or
-restarted after errors have been handled.
+the @tech{on-stop hook} to close @rtech{ports}, terminate network connections,
+and @racket[stop] sub-@tech{process}es. For example, a @tech{codec} closes its
+@rtech{input port} and @rtech{output port} when stopped---but not when killed,
+so it can be swapped out mid-stream or restarted after errors have been
+handled.
 
 The @racket[deadlock] function waits for the current @tech{process} to
 terminate, allowing the computation to diverge efficiently. It can be used as

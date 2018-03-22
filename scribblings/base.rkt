@@ -43,7 +43,7 @@
 
 ;;; Scribble Tech
 
-(define (racket-tech . args)
+(define (rtech . args)
   (apply tech #:doc '(lib "scribblings/reference/reference.scrbl") args))
 
 ;;; Sandboxed Evaluation
