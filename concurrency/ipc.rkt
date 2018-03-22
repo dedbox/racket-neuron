@@ -1,6 +1,7 @@
 #lang racket/base
 
 (require neuron/concurrency/process
+         neuron/private/events
          racket/contract/base)
 
 (provide
