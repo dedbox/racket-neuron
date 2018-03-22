@@ -5,8 +5,9 @@
 @title[#:style '(unnumbered)]{The Neuron Guide}
 @author{@author+email["Eric Griffis" "dedbox@gmail.com"]}
 
-This document is a repository for notes and other documentation that do not
-belong in @secref{the Neuron Reference}.
+This document is a repository for examples, tutorials, notes and other
+documentation that do not belong in @secref{the Neuron Reference} or
+@secref{The Neuron Technical report}.
 
 @section{Introduction}
 
