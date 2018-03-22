@@ -82,73 +82,9 @@ structural pattern-based DSL for working with composable evaluators.
 
 @section{Composable Evaluators}
 
-An @deftech{evaluator} calculates the fixed point of a @tech{term}. More
-precisely, an evaluator is a function that applies a @tech{stepper} to a
-@tech{term} repeatedly until the output equals the input.
+Racket evaluators
 
-@subsection{Terms}
-
-A @deftech{term} is defined recursively as a literal value or a serializable
-composite of sub-terms. For example, the symbol
-
-@racketblock['a-symbol]
-
-and the number
-
-@racketblock[123]
-
-are terms because they are literal values. Furthermore, the structures
-
-@racketblock[
-  '(a-symbol 123)
-]
-
-and
-
-@racketblock[
-  #hasheq((a-symbol . 123))
-]
-
-are terms because they are @racket[read]/@racket[write]able composites of
-literals.
-
-@subsection{Steppers}
-
-A @deftech{stepper} is a function that maps an input @tech{term} to an output
-@tech{term}. For example,
-
-@racketblock[
-  (match-lambda
-    [1 'a]
-    [2 'b]
-    [_ 'z])
-]
-
-maps any term to @racket['a], @racket['b], or @racket['c]. Similarly,
-
-@racketblock[
-  (case-lambda
-    [(a) 1]
-    [(b) 2]
-    [else 0])
-]
-
-maps any term to a number between @racket[0] and @racket[2]. A more realistic
-example is @racket[values], which maps every term to itself; or the function
-
-@racketblock[
-(define step
-  (match-lambda
-    [(list (? term? e1) (? term? e2)) #:when (not (value? e1))
-     (list (step e1) e2)]
-    [(list (? value? v1) (? term? e2?)) #:when (not (value? e2))
-     (list v1 (step e2))]
-    [(list `(λ ,(? symbol? x11) ,(? term? e12)) (? value? v2))
-     (substitute e12 x11 v2)]
-    [_ 'stuck]))
-]
-
-a @tech{term}-based small-@tech{stepper} for the untyped lambda calculus.
+Steppers
 
 @section{Communication-based Concurrency}
 
@@ -301,8 +237,8 @@ methods.
   (π 'd)
 ]
 
-@tech{Evaluators} and @tech{steppers} can be used as @tech{command handlers},
-enabling @tech{term}-based DSLs for out-of-band @tech{process} control.
+@tech{Steppers} can be used as @tech{command handlers}, enabling
+@tech{term}-based DSLs for out-of-band @tech{process} control.
 
 @subsection{Unbuffered Channels}
 
@@ -338,7 +274,7 @@ revocable access to others.
   (recv from-π)
   (give to-π 'abc)
   (get-output-string (π 'socket))
-  (try-recv to-π)
+  (sync/timeout 0 (recv-evt to-π))
   (sync/timeout 0 (give-evt from-π))
 ]
 
@@ -348,16 +284,29 @@ revocable access to others.
   (define π (sexp-codec (string-socket #:in "12 34 56")))
   (define π-ref (proxy π))
   (recv π-ref)
-  (code:line
-   (code:comment "after sharing π-ref with another process")
-   (kill π-ref))
-  (code:line
-   (code:comment "π-ref no longer works")
-   (try-recv π-ref))
-  (code:line
-   (code:comment "but π still does")
-   (recv π))
+  (code:line (kill π-ref) (code:comment "after sharing π-ref"))
+  (code:line (recv π-ref) (code:comment "no longer works"))
+  (code:line (recv π) (code:comment "but π still does"))
 ]
 
 @subsection{Information Flow Control}
 
+@subsection{Working with Threads}
+
+@tech{Process}es and @rtech{threads} can work together.
+
+@examples[
+  #:eval neuron-evaluator
+  #:label "Example:"
+  (define π
+    (process
+     (λ ()
+       (sync
+        (apply evt-set
+               (for/list ([i 10])
+                 (thread
+                  (λ ()
+                    (sleep (/ (random) 10.0))
+                    (emit i)))))))))
+  (for/list ([_ 10]) (recv π))
+]
