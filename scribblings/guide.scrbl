@@ -224,16 +224,16 @@ or by issuing a @racket[quit] or @racket[die] command. A @tech{process} can
 also use the @racket[stop] or @racket[kill] command to terminate any
 @tech{process} it holds a @tech{process descriptor} for.
 
-When a @tech{process} is terminated by @racket[quit] or @racket[stop], it
-enters the stopping state while it calls its @tech{on-stop hook}. When a
-@tech{process} reaches the end of its program or @tech{on-stop hook}, or is
-terminated by a @racket[die] or @racket[kill] command, it enters the dying
-state while it calls its @tech{on-dead hook}. A @tech{process} is dead when
-its @tech{on-dead hook} returns.
+When a @tech{process} reaches the end of its program or is terminated by
+@racket[quit] or @racket[stop], it enters the stopping state while it calls
+its @tech{on-stop hook}. When a @tech{process} reaches the end of its
+@tech{on-stop hook} or is terminated by a @racket[die] or @racket[kill]
+command, it enters the dying state while it calls its @tech{on-dead hook}. A
+@tech{process} is dead when its @tech{on-dead hook} returns.
 
 @examples[
   #:eval neuron-evaluator
-  #:label "Example:"
+  #:label #f
   (wait (start (start (process (λ () (displayln 'ALIVE)))
                       #:on-stop (λ () (displayln 'STOP-1))
                       #:on-dead (λ () (displayln 'DEAD-1)))
@@ -243,14 +243,14 @@ its @tech{on-dead hook} returns.
 
 The @tech{on-dead hook} is for freeing resources no longer needed by any
 @tech{process}. Neuron uses the @tech{on-dead hook} internally to terminate
-network listeners and @racket[kill] sub-@tech{process}es. This @tech{hook}
-runs unconditionally and can't be canceled.
+network listeners and @racket[kill] sub-processes. This @tech{hook} runs
+unconditionally and can't be canceled.
 
 The @tech{on-stop hook} is for extra or optional clean-up tasks. Neuron uses
 the @tech{on-stop hook} to close @rtech{ports}, terminate network connections,
-and @racket[stop] sub-@tech{process}es. For example, a @tech{codec} closes its
-@rtech{input port} and @rtech{output port} when stopped---but not when killed,
-so it can be swapped out mid-stream or restarted after errors have been
+and @racket[stop] sub-processes. For example, some @tech{codecs} close
+@rtech{input ports} and @rtech{output ports} when stopped but not when killed
+so they can be swapped out mid-stream or restarted after errors have been
 handled.
 
 The @racket[deadlock] function waits for the current @tech{process} to
@@ -260,7 +260,7 @@ until stopped or killed.
 
 @examples[
   #:eval neuron-evaluator
-  #:label "Example:"
+  #:label #f
   (kill (start (start (process deadlock)
                       #:on-stop (λ () (displayln 'STOP-1))
                       #:on-dead (λ () (displayln 'DEAD-1)))
@@ -281,7 +281,7 @@ methods.
 
 @examples[
   #:eval neuron-evaluator
-  #:label "Example:"
+  #:label #f
   (define π
     (let ([env #hash([(a b) . 1]
                      [(c) . 2])])
@@ -295,13 +295,13 @@ methods.
 @tech{Steppers} can be used as @tech{command handlers}, enabling
 @tech{term}-based DSLs for out-of-band @tech{process} control.
 
-@subsection{Unbuffered Channels}
+@subsection{Synchronous Exchange}
 
-@tech{Process}es can also communicate by exchanging values through their
-@tech{input channel} and @tech{output channel}. Most of the @tech{process}
-constructors provided by Neuron are designed for channel-based data flow
-networking, hence the distinction between ``in-band'' channel-mediated
-exchanges versus ``out-of-band'' command invocations.
+Processes can also communicate by passing values through their
+@tech{exchangers}. Most of the @tech{process} constructors provided by Neuron
+are designed for channel-based data flow networking, hence the distinction
+between ``in-band'' mediated exchanges versus ``out-of-band'' command
+invocations.
 
 The @racket[server] command creates a @tech{process} that follows the
 request-reply pattern for in-band exchanges. This is useful for providing
@@ -317,51 +317,71 @@ in-band access to the @tech{command handler} of a @tech{process}.
 
 @subsection{Data Flow Control}
 
-Processes can also be combined in non-trivial ways to provide restricted or
-revocable access to others.
+Processes can also be combined to provide restricted or revocable access to
+others.
 
 @examples[
   #:eval neuron-evaluator
-  #:label "Example of restriction:"
+  #:label "Restriction:"
   (define π (sexp-codec (string-socket #:in "12 34 56" #:out #t)))
   (define to-π (proxy-to π))
   (define from-π (proxy-from π))
   (recv from-π)
   (give to-π 'abc)
   (get-output-string (π 'socket))
-  (sync/timeout 0 (recv-evt to-π))
-  (sync/timeout 0 (give-evt from-π))
+  (or (sync/timeout 0 (recv-evt to-π))
+      (sync/timeout 0 (give-evt from-π)))
 ]
 
 @examples[
   #:eval neuron-evaluator
-  #:label "Example of revocation:"
-  (define π (sexp-codec (string-socket #:in "12 34 56")))
-  (define π-ref (proxy π))
-  (recv π-ref)
-  (code:line (kill π-ref) (code:comment "after sharing π-ref"))
-  (code:line (recv π-ref) (code:comment "no longer works"))
-  (code:line (recv π) (code:comment "but π still does"))
+  #:label "Revocation:"
+  (define A
+    (process
+     (λ ()
+       (define π-ref (take))
+       (displayln `(IN-A ,(recv π-ref)))
+       (emit) (take) (code:comment "B kills π-ref")
+       (displayln `(IN-A ,(recv π-ref))))))
+  (define B
+    (process
+     (λ ()
+       (define π (sexp-codec (string-socket #:in "12 34 56")))
+       (define π-ref (proxy π))
+       (give A π-ref)
+       (recv A) (code:comment "A reads live π-ref")
+       (kill π-ref)
+       (give A) (wait A) (code:comment "A reads dead π-ref")
+       (displayln `(IN-B ,(recv π))))))
+   (sync (evt-set A B #:then void))
 ]
 
-@subsection{Information Flow Control}
+@; @subsection{Information Flow Control}
 
 @subsection{Working with Threads}
 
-@tech{Process}es and @rtech{threads} can work together.
+Processes and @rtech{threads} can be combined.
 
 @examples[
   #:eval neuron-evaluator
-  #:label "Example:"
-  (define π
-    (process
-     (λ ()
-       (sync
-        (apply evt-set
-               (for/list ([i 10])
-                 (thread
-                  (λ ()
-                    (sleep (/ (random) 10.0))
-                    (emit i)))))))))
-  (for/list ([_ 10]) (recv π))
+  #:label "Multiple producers:"
+  (define (producer i)
+    (thread (λ () (sleep (/ (random) 10.0)) (emit i))))
+  (define (make-producers)
+    (apply evt-set (for/list ([i 10]) (producer i))))
+  (define π (process (λ () (sync (make-producers)))))
+  (for/list ([_ 10])
+    (recv π))
+]
+
+@examples[
+  #:eval neuron-evaluator
+  #:label "Multiple consumers:"
+  (define (consumer)
+    (thread (λ () (write (take)))))
+  (define (make-consumers)
+    (apply evt-set (for/list ([_ 10]) (consumer))))
+  (define π (process (λ () (sync (make-consumers)))))
+  (for ([i 10])
+    (give π i))
 ]
