@@ -2,7 +2,7 @@
 
 @(require "../base.rkt")
 
-@title[#:style '(grouper)]{Control Your Resources}
+@title[#:style '(grouper toc)]{Control Your Resources}
 
 @local-table-of-contents[]
 

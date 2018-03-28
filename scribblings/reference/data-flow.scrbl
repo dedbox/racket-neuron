@@ -90,10 +90,10 @@ is closed immediately.
 
 @subsection{Codecs}
 
-A @deftech{codec} is a @tech{stream} that uses a @tech{socket} to exchange
-serializable values with remote agents. The @tech{sink} is called an
+A @deftech{codec} is a @racket[stream] that uses a @tech{socket} to exchange
+serializable values with remote agents. The @racket[sink] is called an
 @deftech{encoder}; it uses a @deftech{printer} procedure to serialize values
-to a socket. The @tech{source} is called a @deftech{decoder}; it uses a
+to a socket. The @racket[source] is called a @deftech{decoder}; it uses a
 @deftech{parser} procedure to de-serialize values from a socket.
 
 @defthing[parser/c contract? #:value (-> socket? any/c)]{

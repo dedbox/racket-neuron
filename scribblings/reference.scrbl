@@ -4,7 +4,7 @@
 
 @title[
   #:style '(unnumbered toc)
-  #:tag "the Neuron Reference"
+  #:tag "The Neuron Reference"
 ]{The Neuron Reference}
 @author{@author+email["Eric Griffis" "dedbox@gmail.com"]}
 
