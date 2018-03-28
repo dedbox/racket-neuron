@@ -2,11 +2,14 @@
 
 @(require "base.rkt")
 
-@title[#:style '(unnumbered)]{The Neuron Guide}
+@title[
+  #:style '(unnumbered)
+  #:tag "The Neuron Guide"
+]{The Neuron Guide}
 @author{@author+email["Eric Griffis" "dedbox@gmail.com"]}
 
 This guide provides examples, tutorials, notes and other documentation that do
-not belong in @secref{the Neuron Reference}.
+not belong in @secref{The Neuron Reference}.
 
 @section{Introduction}
 
@@ -79,16 +82,72 @@ structural pattern-based DSL for working with composable evaluators.
   ]
 ]
 
-@section{Composable Evaluators}
+@section{Evaluating Terms}
 
-Racket evaluators
+A @deftech{term} is defined recursively as a literal value or a serializable
+composite of sub-terms. For example, the symbol
 
-Steppers
+@racketblock['a-symbol]
+
+and the number
+
+@racketblock[123]
+
+are terms because they are literal values. The structures
+
+@racketblock[
+  '(a-symbol 123)
+]
+
+and
+
+@racketblock[
+  #hasheq((a-symbol . 123))
+]
+
+are also terms because they are @racket[read]/@racket[write]able composites of
+literals.
+
+A @deftech{stepper} is a function that maps one @tech{term} to another. For
+example,
+
+@racketblock[
+  (case-lambda
+    [(a) 1]
+    [(b) 2]
+    [else 0])
+]
+
+maps any term to a number between @racket[0] and @racket[2]. Similarly,
+
+@racketblock[
+  (match-lambda
+    [1 'a]
+    [2 'b]
+    [_ 'z])
+]
+
+maps any term to @racket['a], @racket['b], or @racket['z]. A more realistic
+example is @racket[values], which maps every term to itself; or the function
+
+@racketblock[
+  (define step
+    (match-lambda
+      [(list (? term? e1) (? term? e2)) #:when (not (value? e1))
+       (list (step e1) e2)]
+      [(list (? value? v1) (? term? e2?)) #:when (not (value? e2))
+       (list v1 (step e2))]
+      [(list `(λ ,(? symbol? x11) ,(? term? e12)) (? value? v2))
+       (substitute e12 x11 v2)]
+      [_ 'stuck]))
+]
+
+a small-@tech{stepper} for the untyped lambda calculus.
 
 @section{Communication-based Concurrency}
 
 Neuron uses a concurrency model of lightweight processes communicating over
-first-class named synchronous @rtech{channels}. @tech{Process}es extend
+named synchronous @tech{exchangers}. Neuron processes extend Racket
 @rtech{threads} with support for life cycle hooks and two orthogonal lines of
 communication. In other words, a @tech{process} is like a @rtech{thread} that
 can clean up after itself and keep ``secrets.''
@@ -153,9 +212,6 @@ specific points in the life time of a @tech{process}.
    #:end-pull 1/2))
 
 @centered[@life-cycle-diagram]
-
-@margin-note{In the future, a @emph{paused} state and an @emph{on-pause} hook
-might be added.}
 
 A @tech{process} is created in the starting state when another @tech{process}
 attempts to spawn a new thread of execution. The requesting @tech{process}
