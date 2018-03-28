@@ -4,21 +4,17 @@
          neuron/concurrency/ipc
          neuron/evaluation
          neuron/private/events
+         neuron/private/syntax
          racket/contract/base
          racket/dict
          racket/function
          (only-in racket/list flatten make-list last))
 
 (provide
- forever while until apply-values
+ (all-from-out
+  neuron/private/events
+  neuron/private/syntax)
  (contract-out
-  [evt-set (-> evt? ... evt?)]
-  [evt-sequence (-> (-> evt?) (-> evt?) ... evt?)]
-  [evt-series (->* ((-> any/c evt?))
-                   (#:init any/c)
-                   #:rest (listof (-> any/c evt?))
-                   evt?)]
-  [evt-loop (->* ((-> any/c evt?)) (#:init any/c) evt?)]
   [server (-> (-> any/c any/c) process?)]
   [proxy (->* (process?)
               (#:on-take (-> any/c any/c)
@@ -57,20 +53,6 @@
                 process?)]
   [shutdown (-> process? void?)]
   [shutdown-evt (-> process? evt?)]))
-
-;; Commands
-
-(define-syntax-rule (forever body ...)
-  (let loop () body ... (loop)))
-
-(define-syntax-rule (while expr body ...)
-  (let loop () (when expr body ... (loop))))
-
-(define-syntax-rule (until expr body ...)
-  (let loop () (unless expr body ... (loop))))
-
-(define-syntax-rule (apply-values proc expr)
-  (call-with-values (λ () expr) proc))
 
 ;; Processes
 
