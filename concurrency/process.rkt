@@ -61,7 +61,12 @@
               (loop (cdr handlers))
               result)))))
 
-(define current-process (make-parameter #f))
+(define current-process
+  (make-parameter
+   (make-process (current-thread)
+                 #f #f #f #f
+                 (make-exchanger)
+                 (make-exchanger))))
 
 (define (quit . _)
   ((process-stop-cont (current-process))))
