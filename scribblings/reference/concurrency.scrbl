@@ -55,6 +55,147 @@ an unhandled exception re-raises the exception.
   (eval:error (sync (process (λ () (raise 'VAL)))))
 ]
 
+@section{Mediated Exchange}
+
+@; @margin-note{@secref{The Neuron Technical Report} gives a detailed explanation
+@; of how and why exchangers differ from ordinary @rtech{channels}.}
+
+An @deftech{exchanger} is a @rtech{channel}-based primitive that both
+synchronizes a pair of threads and passes a value from one to the other.
+Exchangers are synchronous, fair, and support multiple senders and receivers,
+but can not be used as @rtech{synchronizable events} directly.
+
+In any exchange, one thread puts a value and another thread get it. The
+@racket[channel-get] and @racket[channel-put] operations model this data flow
+explicitly. Unfortunately, channels offer no way to tell which side initiates
+the exchange. Exchangers enable this ability by making the initiating side
+provide the channel for the exchange.
+
+@defproc[(exchanger? [v any/c]) boolean?]{
+
+  Returns @racket[#t] if @racket[v] is an @tech{exchanger}, @racket[#f]
+  otherwise.
+
+}
+
+@defproc[(make-exchanger) exchanger?]{
+
+  Creates and returns a new exchanger.
+
+}
+
+@defproc[(ex-offer [ex1 exchanger?] [#:to ex2 exchanger?]) void?]{
+
+  Blocks until @racket[ex2] is ready to accept @racket[ex1].
+
+}
+
+@defproc[(ex-accept [#:from ex exchanger?]) exchanger?]{
+
+  Blocks until an exchanger is offered to @racket[ex].
+
+}
+
+@defproc[(ex-put [v any/c] [#:into ex exchanger?]) void?]{
+
+  Blocks until an exchanger is ready to get @racket[v] from @racket[ex].
+
+}
+
+@defproc[(ex-get [#:from ex exchanger?]) any/c]{
+
+  Blocks until an exchanger puts a value into @racket[ex].
+
+}
+
+@subsection{Process Exchangers}
+
+@defproc[(giver [tx exchanger?] [rx exchanger?] [v any/c]) void?]{
+
+  Offers @racket[tx] to @racket[rx], then puts @racket[v] into @racket[tx].
+
+}
+
+@defproc[(taker [rx exchanger?]) any/c]{
+
+  Gets a value from an exchanger accepted from @racket[rx].
+
+}
+
+@defproc[(emitter [tx exchanger?] [v any/c]) void?]{
+
+  Puts @racket[v] into an exchanger accepted from @racket[tx].
+
+}
+
+@defproc[(receiver [rx exchanger?] [tx exchanger?]) any/c]{
+
+  Offers @racket[rx] to @racket[tx], then gets a value from @racket[rx].
+
+}
+
+@defproc[(forwarder [tx exchanger?] [rx exchanger?]) void?]{
+
+  Offers an exchanger accepted from @racket[tx] to @racket[rx].
+
+}
+
+@defproc[
+  (coupler [rx exchanger?] [tx exchanger?] [ex exchanger? (make-exchanger)])
+  void?
+]{
+
+  Offers @racket[ex] to @racket[rx] and @racket[tx].
+
+}
+
+@defproc[(giver-evt [tx exchanger?] [rx exchanger?] [v any/c]) evt?]{
+
+  Returns a fresh @rtech{synchronizable event} that becomes @rtech{ready for
+  synchronization} when @racket[(giver tx rx v)] would not block.
+
+}
+
+@defproc[(taker-evt [rx exchanger?]) evt?]{
+
+  Returns a constant @rtech{synchronizable event} that becomes @rtech{ready
+  for synchronization} when @racket[(taker rx)] would not block, and the
+  @rtech{synchronization result} is the value taken through @racket[rx].
+
+}
+
+@defproc[(emitter-evt [tx exchanger?] [v any/c]) evt?]{
+
+  Returns a fresh @rtech{synchronizable event} that becomes @rtech{ready for
+  synchronization} when @racket[(emitter tx v)] would not block.
+
+}
+
+@defproc[(receiver-evt [rx exchanger?] [tx exchanger?]) evt?]{
+
+  Returns a constant @rtech{synchronizable event} that becomes @rtech{ready
+  for synchronization} when @racket[(receiver rx tx)] would not block, and the
+  @rtech{synchronization result} is the value received through @racket[rx].
+
+}
+
+@defproc[(forwarder-evt [tx exchanger?] [rx exchanger?]) evt?]{
+
+  Returns a constant @rtech{synchronizable event} that becomes @rtech{ready
+  for synchronization} when @racket[(forwarder tx rx)] would not block.
+
+}
+
+@defproc[
+  (coupler-evt [rx exchanger?] [tx exchanger?] [ex exchanger? (make-exchanger)])
+  evt?
+]{
+
+  Returns a constant @rtech{synchronizable event} that becomes @rtech{ready
+  for synchronization} when @racket[(coupler rx tx ex)] would not block.
+
+}
+
 @section{Starting and Stopping Processes}
 
 Processes are created explicitly by the @racket[process] function. Use
@@ -90,6 +231,16 @@ Processes are created explicitly by the @racket[process] function. Use
   immediately with a @deftech{process descriptor} value.
 
 }
+
+@defproc[(process-tx [π process?]) transmitter?]{
+
+  Returns the transmitting @tech{exchanger} of @racket[π].
+
+}
+
+@defproc[(process-rx [π process?]) transmitter?]{
+
+  Returns the receiving @tech{exchanger} of @racket[π].
 
 }
 
@@ -235,6 +386,22 @@ Processes are created explicitly by the @racket[process] function. Use
 
 }
 
+@defproc[(forward-to [π process?]) void?]{
+
+  Takes a value and gives it to @racket[π].
+
+}
+
+@defproc[(forward-from [π process?]) void?]{
+
+  Emits a value received from @racket[π].
+
+}
+
+@defproc[(couple [π1 process?] [π2 process?]) void?]{
+
+  Receives a value from @racket[π1] and gives it to @racket[π2].
+
 }
 
 @defproc[(give-evt [π process?] [v any/c (void)]) evt?]{
@@ -270,6 +437,30 @@ Processes are created explicitly by the @racket[process] function. Use
   for synchronization} when @racket[π] is ready to provide a value through its
   transmitting @tech{exchanger}, or until @racket[π] is dead. The
   @rtech{synchronization result} is the provided value or @racket[eof].
+
+}
+
+@defproc[(forward-to-evt [π process?]) evt?]{
+
+  Returns a constant @rtech{synchronizable event} that becomes @rtech{ready
+  for synchronization} when a value has been taken and then given to
+  @racket[π].
+
+}
+
+@defproc[(forward-from-evt [π process?]) evt?]{
+
+  Returns a constant @rtech{synchronizable event} that becomes @rtech{ready
+  for synchronization} when a value has been received from @racket[π] and
+  then emitted.
+
+}
+
+@defproc[(couple-evt [π1 process?] [π2 process?]) void?]{
+
+  Returns a constant @rtech{synchronizable event} that becomes @rtech{ready
+  for synchronization} when a value has been received from @racket[π1] and
+  then given to @racket[π2].
 
 }
 
