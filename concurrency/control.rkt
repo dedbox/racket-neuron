@@ -1,7 +1,8 @@
 #lang racket/base
 
-(require neuron/concurrency/process
-         neuron/concurrency/ipc
+(require neuron/concurrency/ipc
+         neuron/concurrency/process
+         neuron/concurrency/exchanger
          neuron/evaluation
          neuron/private/events
          neuron/private/syntax
@@ -16,28 +17,12 @@
   neuron/private/syntax)
  (contract-out
   [server (-> (-> any/c any/c) process?)]
-  [proxy (->* (process?)
-              (#:on-take (-> any/c any/c)
-               #:on-emit (-> any/c any/c))
-              process?)]
-  [proxy-to (->* (process?)
-                 (#:on-take (-> any/c any/c))
-                 process?)]
-  [proxy-from (->* (process?)
-                   (#:on-emit (-> any/c any/c))
-                   process?)]
-  [proxy-evt (->* (process?)
-                  (#:on-take (-> any/c any/c)
-                   #:on-emit (-> any/c any/c))
-                  evt?)]
-  [proxy-to-evt (->* (process?) (#:on-take (-> any/c any/c)) evt?)]
-  [proxy-from-evt (->* (process?) (#:on-emit (-> any/c any/c)) evt?)]
+  [proxy (-> process? process?)]
+  [proxy-to (-> process? process?)]
+  [proxy-from (-> process? process?)]
   [sink (-> (-> any/c any) process?)]
   [source (-> (-> any/c) process?)]
-  [stream (->* (process? process?)
-               (#:on-take (-> any/c any/c)
-                #:on-emit (-> any/c any/c))
-               process?)]
+  [stream (-> process? process? process?)]
   [service
    (->* ((-> process? any/c))
         (#:on-drop (-> any/c process? any))
@@ -59,34 +44,39 @@
 (define (server proc)
   (process (λ () (forever (emit (proc (take)))))))
 
-(define (proxy π #:on-take [on-take values] #:on-emit [on-emit values])
+(define (proxy π)
   (start
-   (process (λ () (sync (proxy-evt π #:on-take on-take #:on-emit on-emit))))
+   (process
+    (λ ()
+      (sync
+       (choice-evt
+        (evt-loop (λ _ (forward-to-evt π)))
+        (evt-loop (λ _ (forward-from-evt π)))
+        (handle-evt π die)))))
    #:on-stop (λ () (stop π))
    #:command (λ vs (apply π vs))))
 
-(define (proxy-to π #:on-take [on-take values])
+(define (proxy-to π)
   (start
-   (process (λ () (sync (proxy-to-evt π #:on-take on-take))))
+   (process
+    (λ ()
+      (sync
+       (choice-evt
+        (evt-loop (λ _ (forward-to-evt π)))
+        (handle-evt π die)))))
    #:on-stop (λ () (stop π))
    #:command (λ vs (apply π vs))))
 
-(define (proxy-from π #:on-emit [on-emit values])
+(define (proxy-from π)
   (start
-   (process (λ () (sync (proxy-from-evt π #:on-emit on-emit))))
+   (process
+    (λ ()
+      (sync
+       (choice-evt
+        (evt-loop (λ _ (forward-from-evt π)))
+        (handle-evt π die)))))
    #:on-stop (λ () (stop π))
    #:command (λ vs (apply π vs))))
-
-(define (proxy-evt π #:on-take [on-take values] #:on-emit [on-emit values])
-  (choice-evt (proxy-to-evt π #:on-take on-take)
-              (proxy-from-evt π #:on-emit on-emit)
-              π))
-
-(define (proxy-to-evt π #:on-take [on-take values])
-  (evt-loop (λ _ (replace-evt (take-evt) (λ (v) (give-evt π (on-take v)))))))
-
-(define (proxy-from-evt π #:on-emit [on-emit values])
-  (evt-loop (λ _ (replace-evt (recv-evt π) (λ (v) (emit-evt (on-emit v)))))))
 
 (define (sink proc)
   (process (λ () (forever (proc (take))))))
@@ -94,18 +84,20 @@
 (define (source proc)
   (process (λ () (forever (emit (proc))))))
 
-(define (stream snk src #:on-take [on-take values] #:on-emit [on-emit values])
+(define (stream snk src)
   (start
-   (process (λ ()
-              (sync
-               (choice-evt
-                (proxy-to-evt snk #:on-take on-take)
-                (proxy-from-evt src #:on-emit on-emit)
-                (handle-evt (evt-set snk src) die)))))
+   (process
+    (λ ()
+      (sync
+       (choice-evt
+        (evt-loop (λ _ (forward-to-evt snk)))
+        (evt-loop (λ _ (forward-from-evt src)))
+        (handle-evt (evt-set snk src) die)))))
    #:on-stop (λ () (stop snk) (stop src))
-   #:command (bind ([sink snk]
-                    [source src])
-                   #:else unhandled)))
+   #:command (bind
+              ([sink snk]
+               [source src])
+              #:else unhandled)))
 
 (define (service key-proc #:on-drop [on-drop void])
   (define latch (make-semaphore 0))
@@ -133,10 +125,11 @@
   (define (next-peer-evt)
     (apply choice-evt (dict-map (hash->list peers) peer-emit-evt)))
   (start
-   (process (λ ()
-              (sync
-               (evt-loop (λ _ (evt-series (λ _ (take-evt)) peer-give-evt)))
-               (evt-loop (λ _ (choice-evt latch (next-peer-evt)))))))
+   (process
+    (λ ()
+      (sync
+       (evt-loop (λ _ (evt-series (λ _ (take-evt)) peer-give-evt)))
+       (evt-loop (λ _ (choice-evt latch (next-peer-evt)))))))
    #:on-stop (λ () (for-each drop-peer (dict-keys (hash->list peers))))
    #:command (bind ([peers (hash->list peers)]
                     [add add-peer]
@@ -145,19 +138,22 @@
                    #:else unhandled)))
 
 (define (simulator proc #:rate [rate 10])
-  (process (λ ()
-             (define period (/ 1000.0 rate))
-             (define timestamp (current-inexact-milliseconds))
-             (forever
-               (set! timestamp (+ timestamp period))
-               (sync (alarm-evt timestamp))
-               (proc period)))))
+  (process
+   (λ ()
+     (define period (/ 1000.0 rate))
+     (define timestamp (current-inexact-milliseconds))
+     (forever
+       (set! timestamp (+ timestamp period))
+       (sync (alarm-evt timestamp))
+       (proc period)))))
 
 (define (pipe . πs)
   (start
-   (process (λ ()
-              (sync (thread (λ () (forever (emit (foldl call (take) πs)))))
-                    (handle-evt (apply choice-evt πs) die))))
+   (process
+    (λ ()
+      (sync
+       (thread (λ () (forever (emit (foldl call (take) πs)))))
+       (handle-evt (apply choice-evt πs) die))))
    #:on-stop (λ () (for-each stop πs))))
 
 (define (bridge π1 π2)
@@ -168,8 +164,8 @@
    (process
     (λ ()
       (sync
-       (evt-loop (λ _ (evt-series (λ _ (recv-evt π1)) (curry give-evt π2))))
-       (evt-loop (λ _ (evt-series (λ _ (recv-evt π2)) (curry give-evt π1))))
+       (evt-loop (λ _ (couple-evt π1 π2)))
+       (evt-loop (λ _ (couple-evt π2 π1)))
        (handle-evt (choice-evt π1 π2) die))))
    #:on-stop (λ () (stop π1) (stop π2))
    #:command (bind ([1 π1]
@@ -188,25 +184,26 @@
   (start
    (process
     (λ ()
-      (sync (evt-loop
-             (λ _
-               (evt-series
-                (λ _ (take-evt))
-                (λ (v)
-                  (when (eof-object? v) (pre-take-eof π))
-                  (handle-evt
-                   (give-evt π v)
-                   (λ _ (when (eof-object? v) (post-take-eof π))))))))
-            (evt-loop
-             (λ _
-               (evt-series
-                (λ _ (recv-evt π))
-                (λ (v)
-                  (when (eof-object? v) (pre-emit-eof π))
-                  (handle-evt
-                   (emit-evt v)
-                   (λ _ (when (eof-object? v) (post-emit-eof π))))))))
-            (handle-evt π die))))
+      (sync
+       (evt-loop
+        (λ _
+          (evt-series
+           (λ _ (take-evt))
+           (λ (v)
+             (when (eof-object? v) (pre-take-eof π))
+             (handle-evt
+              (give-evt π v)
+              (λ _ (when (eof-object? v) (post-take-eof π))))))))
+       (evt-loop
+        (λ _
+          (evt-series
+           (λ _ (recv-evt π))
+           (λ (v)
+             (when (eof-object? v) (pre-emit-eof π))
+             (handle-evt
+              (emit-evt v)
+              (λ _ (when (eof-object? v) (post-emit-eof π))))))))
+       (handle-evt π die))))
    #:on-stop (λ () (stop π))
    #:command π))
 
@@ -448,16 +445,16 @@
     (check >= (- t10 t0) 100))
 
   (test-case
-    "A proxy calls on-take and forwards to π."
-    (define π (proxy (server (λ (x) (* x 2))) #:on-take add1))
+    "A proxy forwards to π."
+    (define π (proxy (server (λ (x) (* x 2)))))
     (give π 37)
-    (check = (recv π) 76))
+    (check = (recv π) 74))
 
   (test-case
-    "A proxy forwards from π and calls on-emit."
-    (define π (proxy (server (λ (x) (* x 2))) #:on-emit sub1))
+    "A proxy forwards from π."
+    (define π (proxy (server (λ (x) (* x 2)))))
     (give π 43)
-    (check = (recv π) 85))
+    (check = (recv π) 86))
 
   (test-case
     "A proxy stops π when it stops."
@@ -496,8 +493,10 @@
 
   (test-case
     "A bridge forwards from π1 to π2, and vice versa."
-    (wait (bridge (process (λ () (emit 51) (check = (take) 53)))
-                  (process (λ () (emit 53) (check = (take) 51))))))
+    (wait
+     (bridge
+      (process (λ () (emit 51) (check = (take) 53)))
+      (process (λ () (check = (take) 51) (emit 53))))))
 
   (test-case
     "A bridge stops π1 and π2 when it stops."

@@ -1,7 +1,9 @@
 #lang racket/base
 
-(require racket/contract/base
-         (only-in racket/list flatten))
+(require
+ neuron/concurrency/exchanger
+ racket/contract/base
+ (only-in racket/list flatten))
 
 (provide
  start
@@ -12,8 +14,8 @@
      [args (listof any/c)])]
   [process? predicate/c]
   [process (-> (-> any) process?)]
-  [process-in-ch (-> process? channel?)]
-  [process-out-ch (-> process? channel?)]
+  [process-tx (-> process? exchanger?)]
+  [process-rx (-> process? exchanger?)]
   [command (-> process? (listof any/c) any)]
   [stop (-> process? void?)]
   [kill (-> process? void?)]
@@ -31,7 +33,7 @@
 (struct unhandled-command (process args) #:transparent)
 
 (struct process
-  (thread dead-cont stop-cont command raised in-ch out-ch)
+  (thread dead-cont stop-cont command raised tx rx)
   #:constructor-name make-process
   #:omit-define-syntaxes
   #:property prop:evt (λ (π) (wait-evt π))
@@ -97,15 +99,16 @@
                   (thunk))))))
         (for ([proc on-stop-hook]) (proc)))
       (parameterize-break #f
-        (for ([proc on-dead-hook]) (proc))))
+        (for ([proc on-dead-hook]) (proc)))
+      (sleep))
     (define π
       (make-process (thread process)
                     (channel-get ready-ch)
                     (channel-get ready-ch)
                     command-hook
                     raised
-                    (make-channel)
-                    (make-channel)))
+                    (make-exchanger)
+                    (make-exchanger)))
     (channel-put ready-ch π)
     π))
 

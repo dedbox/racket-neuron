@@ -1,22 +1,35 @@
 #lang racket/base
 
-(require neuron/concurrency/process
+(require neuron/concurrency/exchanger
+         neuron/concurrency/process
          neuron/private/events
+         neuron/private/ipc
          racket/contract/base)
 
 (provide
+ (all-from-out neuron/private/ipc)
  (contract-out
   [give (->* (process?) (any/c) boolean?)]
   [take (-> any/c)]
-  [try-take (-> any/c)]
   [emit (->* () (any/c) void?)]
   [recv (-> process? any/c)]
-  [try-recv (-> process? any/c)]
   [call (-> process? any/c any/c)]
+  [forward-to (-> process? void?)]
+  [forward-from (-> process? void?)]
+  [couple
+   (->* (process? process?)
+        (exchanger?)
+        void?)]
   [give-evt (->* (process?) (any/c) evt?)]
   [take-evt (-> evt?)]
   [emit-evt (->* () (any/c) evt?)]
-  [recv-evt (-> process? evt?)]))
+  [recv-evt (-> process? evt?)]
+  [forward-to-evt (-> process? evt?)]
+  [forward-from-evt (-> process? evt?)]
+  [couple-evt
+   (->* (process? process?)
+        (exchanger?)
+        evt?)]))
 
 ;; Commands
 
@@ -26,39 +39,63 @@
 (define (take)
   (sync (take-evt)))
 
-(define (try-take)
-  (channel-try-get (process-in-ch (current-process))))
-
 (define (emit [v (void)])
   (sync (emit-evt v)))
 
 (define (recv π)
   (sync (recv-evt π)))
 
-(define (try-recv π)
-  (channel-try-get (process-out-ch π)))
-
 (define (call π [v (void)])
   (give π v)
   (recv π))
 
+(define (forward-to π)
+  (sync (forward-to-evt π)))
+
+(define (forward-from π)
+  (sync (forward-from-evt π)))
+
+(define (couple π1 π2 [ex (make-exchanger)])
+  (sync (couple-evt π1 π2 ex)))
+
 ;; Events
 
 (define (give-evt π [v (void)])
+  (define tx (process-tx (current-process)))
+  (define rx (process-rx π))
   (choice-evt
-    (handle-evt (channel-put-evt (process-in-ch π) v) (λ _ #t))
-    (handle-evt π (λ _ #f))))
+   (handle-evt (giver-evt tx rx v) (λ _ #t))
+   (handle-evt π (λ _ #f))))
 
 (define (take-evt)
-  (process-in-ch (current-process)))
+  (taker-evt (process-rx (current-process))))
 
 (define (emit-evt [v (void)])
-  (handle-evt (channel-put-evt (process-out-ch (current-process)) v) void))
+  (define tx (process-tx (current-process)))
+  (handle-evt (emitter-evt tx v) void))
 
 (define (recv-evt π)
+  (define tx (process-tx π))
+  (define rx (process-rx (current-process)))
   (choice-evt
-    (process-out-ch π)
-    (handle-evt π (λ _ eof))))
+   (receiver-evt rx tx)
+   (handle-evt π (λ _ eof))))
+
+(define (forward-to-evt π)
+  (forwarder-evt
+   (process-rx (current-process))
+   (process-rx π)))
+
+(define (forward-from-evt π)
+  (forwarder-evt
+   (process-tx (current-process))
+   (process-tx π)))
+
+(define (couple-evt π1 π2 [ex (make-exchanger)])
+  (coupler-evt
+   (process-rx π1)
+   (process-tx π2)
+   ex))
 
 (module+ test
   (require rackunit)
@@ -94,19 +131,6 @@
     (void (sync π)))
 
   (test-case
-    "try-take returns the provided value if any."
-    (define π1 (process (λ () (emit) (check = (try-take) 11))))
-    (define π2 (process (λ () (give π1 11))))
-    (sync/timeout 0.1 π2)
-    (recv π1)
-    (sync π2)
-    (void (sync π1)))
-
-  (test-case
-    "try-take returns #f if no value is provided."
-    (void (sync (process (λ () (check-false (try-take)))))))
-
-  (test-case
     "emit blocks until a process accepts v."
     (define π (process (λ () (check-false (not (emit))))))
     (recv π)
@@ -133,16 +157,6 @@
   (test-case
     "recv returns eof when π dies."
     (check-pred eof-object? (recv (process die))))
-
-  (test-case
-    "try-recv returns the value accepted from π if any."
-    (define π (process (λ () (emit 17))))
-    (sync/timeout 0.1 π)
-    (check = (try-recv π) 17))
-
-  (test-case
-    "try-recv returns #f if no value is accepted."
-    (check-false (try-recv (process deadlock))))
 
   (test-case
     "call gives v to π and then recvs from π."
@@ -211,4 +225,27 @@
     (define π (process deadlock))
     (define evt (recv-evt π))
     (kill π)
-    (check-pred eof-object? (sync evt))))
+    (check-pred eof-object? (sync evt)))
+
+  (test-case
+    "forward-to-evt"
+    (define π1 (process (λ () (emit (add1 (take))))))
+    (define π2 (process (λ () (sync (forward-to-evt π1)))))
+    (check-true (give π2 1))
+    (check = (recv π1) 2))
+
+  (test-case
+    "forward-from-evt"
+    (define π1 (process (λ () (emit 1))))
+    (define π2 (process (λ () (sync (forward-from-evt π1)))))
+    (check = (recv π2) 1)
+    (check-pred eof-object? (recv π2)))
+
+  (test-case
+    "couple-evt"
+    (define π1 (process (λ () (emit 1) (check = (take) 2))))
+    (define π2 (process (λ () (check = (take) 1) (emit 2))))
+    (void (sync
+           (evt-set
+            (thread (λ () (couple π1 π2)))
+            (thread (λ () (couple π2 π1))))))))

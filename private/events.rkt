@@ -7,7 +7,11 @@
 
 (provide
  (contract-out
-  [evt-set (-> evt? ... evt?)]
+  [evt-set
+   (->* ()
+        (#:then (-> any/c ... any))
+        #:rest (listof evt?)
+        evt?)]
   [evt-sequence
    (->* ((-> evt?))
         (#:then (-> any/c any))
@@ -20,13 +24,14 @@
                    evt?)]
   [evt-loop (->* ((-> any/c evt?)) (#:init any/c) evt?)]))
 
-(define (evt-set . evts)
+(define (evt-set #:then [proc list] . evts)
   (define results null)
   (define (handle e)
     (handle-evt e (λ (v) (cons e v))))
   (define (recur es)
     (if (null? es)
-        (handle-evt always-evt (λ _ (map (curry dict-ref results) evts)))
+        (handle-evt always-evt
+                    (λ _ (apply proc (map (curry dict-ref results) evts))))
         (replace-evt (apply choice-evt (map handle es))
                      (λ (e+v)
                        (set! results (cons e+v results))
