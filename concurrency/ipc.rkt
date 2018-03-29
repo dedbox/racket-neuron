@@ -3,11 +3,11 @@
 (require neuron/concurrency/exchanger
          neuron/concurrency/process
          neuron/private/events
-         neuron/private/ipc
+         neuron/private/exchangers
          racket/contract/base)
 
 (provide
- (all-from-out neuron/private/ipc)
+ (all-from-out neuron/private/exchangers)
  (contract-out
   [give (->* (process?) (any/c) boolean?)]
   [take (-> any/c)]
