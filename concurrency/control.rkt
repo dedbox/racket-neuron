@@ -2,7 +2,6 @@
 
 (require neuron/concurrency/ipc
          neuron/concurrency/process
-         neuron/concurrency/exchanger
          neuron/evaluation
          neuron/private/events
          neuron/private/syntax

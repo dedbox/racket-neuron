@@ -2,7 +2,6 @@
 
 (require racket/contract/base
          racket/dict
-         racket/function
          (prefix-in list: racket/list))
 
 (provide
@@ -25,18 +24,18 @@
   [evt-loop (->* ((-> any/c evt?)) (#:init any/c) evt?)]))
 
 (define (evt-set #:then [proc list] . evts)
-  (define results null)
-  (define (handle e)
-    (handle-evt e (λ (v) (cons e v))))
-  (define (recur es)
+  (define results (make-vector (length evts) '?))
+  (define handlers
+    (for/list ([k (vector-length results)]
+               [e evts])
+      (thread (λ () (vector-set! results k (sync e))))))
+  (let loop ([es handlers])
     (if (null? es)
-        (handle-evt always-evt
-                    (λ _ (apply proc (map (curry dict-ref results) evts))))
-        (replace-evt (apply choice-evt (map handle es))
-                     (λ (e+v)
-                       (set! results (cons e+v results))
-                       (recur (remq (car e+v) es))))))
-  (recur evts))
+        (handle-evt always-evt (λ _ (apply proc (vector->list results))))
+        (replace-evt
+         (apply choice-evt es)
+         (λ (e)
+           (loop (remq e es)))))))
 
 (define (evt-sequence #:then [make-result values] make-evt0 . make-evts)
   (define-values (lhs rhs) (list:split-at-right make-evts 1))
