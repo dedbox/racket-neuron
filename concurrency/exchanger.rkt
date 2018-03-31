@@ -34,7 +34,7 @@
   (sync (ex-accept-evt #:from ex)))
 
 (define (ex-put v #:into ex)
-  (sync (ex-put-evt v #:to ex)))
+  (sync (ex-put-evt v #:into ex)))
 
 (define (ex-get #:from ex)
   (sync (ex-get-evt #:from ex)))
