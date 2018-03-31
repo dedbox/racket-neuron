@@ -65,11 +65,18 @@ synchronizes a pair of threads and passes a value from one to the other.
 Exchangers are synchronous, fair, and support multiple senders and receivers,
 but can not be used as @rtech{synchronizable events} directly.
 
-In any exchange, one thread puts a value and another thread get it. The
-@racket[channel-get] and @racket[channel-put] operations model this data flow
-explicitly. Unfortunately, channels offer no way to tell which side initiates
-the exchange. Exchangers enable this ability by making the initiating side
-provide the channel for the exchange.
+@; In any exchange, one thread puts a value and another thread get it. The
+@; @racket[channel-get] and @racket[channel-put] operations model this data flow
+@; explicitly. Unfortunately, channels offer no way to tell which side initiates
+@; the exchange. Exchangers enable this ability by making the initiating side
+@; provide the channel for the exchange.
+
+The participants of an exchange can be characterized by two orthogonal
+factors: control flow and data flow. In an exchange, one side waits for the
+other to initiate. If the initiating side is transmitting, then the waiting
+side is receiving. Similarly, if the initiating side is receiving, then the
+waiting side is transmitting. With this distinction, forwarding exchangers
+with precise control flow semantics can be defined.
 
 @defproc[(exchanger? [v any/c]) boolean?]{
 
