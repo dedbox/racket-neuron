@@ -52,8 +52,7 @@
         (evt-loop (λ _ (forward-to-evt π)))
         (evt-loop (λ _ (forward-from-evt π)))
         (handle-evt π die)))))
-   #:on-stop (λ () (stop π))
-   #:command (λ vs (apply π vs))))
+   #:on-stop (λ () (stop π))))
 
 (define (proxy-to π)
   (start
@@ -63,8 +62,7 @@
        (choice-evt
         (evt-loop (λ _ (forward-to-evt π)))
         (handle-evt π die)))))
-   #:on-stop (λ () (stop π))
-   #:command (λ vs (apply π vs))))
+   #:on-stop (λ () (stop π))))
 
 (define (proxy-from π)
   (start
@@ -74,8 +72,7 @@
        (choice-evt
         (evt-loop (λ _ (forward-from-evt π)))
         (handle-evt π die)))))
-   #:on-stop (λ () (stop π))
-   #:command (λ vs (apply π vs))))
+   #:on-stop (λ () (stop π))))
 
 (define (sink proc)
   (process (λ () (forever (proc (take))))))
@@ -99,8 +96,8 @@
               #:else unhandled)))
 
 (define (service key-proc #:on-drop [on-drop void])
-  (define latch (make-semaphore 0))
   (define peers (make-hash))
+  (define latch (make-semaphore))
   (define (add-peer π)
     (define key (key-proc π))
     (hash-set! peers key π)
@@ -219,7 +216,7 @@
   (require rackunit
            racket/async-channel)
 
-  ;; Commands
+  ;; Syntax
 
   (test-case
     "forever evaluates its body repeatedly."
@@ -350,6 +347,106 @@
     (check = (recv π) 24))
 
   (test-case
+    "A proxy forwards to π."
+    (define π (proxy (server (λ (x) (* x 2)))))
+    (give π 37)
+    (check = (recv π) 74))
+
+  (test-case
+    "A proxy forwards from π."
+    (define π (proxy (server (λ (x) (* x 2)))))
+    (give π 43)
+    (check = (recv π) 86))
+
+  (test-case
+    "A proxy stops π when it stops."
+    (define π (process deadlock))
+    (stop (proxy π))
+    (check-true (dead? π)))
+
+  (test-case
+    "A proxy dies when π dies."
+    (define π (process deadlock))
+    (define π* (proxy π))
+    (kill π)
+    (wait π*)
+    (check-true (dead? π*)))
+
+  (test-case
+    "A proxy-to forwards to π."
+    (define π (server add1))
+    (define to-π (proxy-to π))
+    (for ([i 10])
+      (check-true (give to-π i))
+      (check = (recv π) (add1 i))))
+
+  (test-case
+    "A proxy-to does not forward from π."
+    (define π (server add1))
+    (define to-π (proxy-to π))
+    (for ([i 10])
+      (give to-π i)
+      (check-false (sync/timeout 0 (recv-evt to-π)))
+      (check = (recv π) (add1 i))))
+
+  (test-case
+    "A proxy-to stops π when it stops."
+    (define π (server add1))
+    (define to-π (proxy-to π))
+    (check-pred alive? π)
+    (check-pred alive? to-π)
+    (stop to-π)
+    (check-pred dead? to-π)
+    (check-pred dead? π))
+
+  (test-case
+    "A proxy-to dies when π dies."
+    (define π (server add1))
+    (define to-π (proxy-to π))
+    (check-pred alive? π)
+    (check-pred alive? to-π)
+    (kill π)
+    (check-pred dead? π)
+    (wait to-π)
+    (check-pred dead? to-π))
+
+  (test-case
+    "A proxy-from does not forward to π."
+    (define π (server add1))
+    (define from-π (proxy-from π))
+    (for ([i 10])
+      (check-false (sync/timeout 0 (give-evt from-π i)))))
+
+  (test-case
+    "A proxy-from forwards from π."
+    (define π (server add1))
+    (define from-π (proxy-from π))
+    (for ([i 10])
+      (check-true (give π i))
+      (check = (recv from-π) (add1 i))))
+
+  (test-case
+    "A proxy-from stops π when it stops."
+    (define π (server add1))
+    (define from-π (proxy-from π))
+    (check-pred alive? π)
+    (check-pred alive? from-π)
+    (stop from-π)
+    (check-pred dead? from-π)
+    (check-pred dead? π))
+
+  (test-case
+    "A proxy-from dies when π dies."
+    (define π (server add1))
+    (define from-π (proxy-from π))
+    (check-pred alive? π)
+    (check-pred alive? from-π)
+    (kill π)
+    (check-pred dead? π)
+    (wait from-π)
+    (check-pred dead? from-π))
+
+  (test-case
     "A sink applies proc to each value taken."
     (define last -1)
     (define π (sink (λ (n) (check = n (+ last 1)) (set! last n))))
@@ -442,32 +539,6 @@
     (define t10 (current-inexact-milliseconds))
     (check = N 10)
     (check >= (- t10 t0) 100))
-
-  (test-case
-    "A proxy forwards to π."
-    (define π (proxy (server (λ (x) (* x 2)))))
-    (give π 37)
-    (check = (recv π) 74))
-
-  (test-case
-    "A proxy forwards from π."
-    (define π (proxy (server (λ (x) (* x 2)))))
-    (give π 43)
-    (check = (recv π) 86))
-
-  (test-case
-    "A proxy stops π when it stops."
-    (define π (process deadlock))
-    (stop (proxy π))
-    (check-true (dead? π)))
-
-  (test-case
-    "A proxy dies when π dies."
-    (define π (process deadlock))
-    (define π* (proxy π))
-    (kill π)
-    (wait π*)
-    (check-true (dead? π*)))
 
   (test-case
     "A pipe calls πs in series."
