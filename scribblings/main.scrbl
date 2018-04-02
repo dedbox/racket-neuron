@@ -11,3 +11,4 @@ decentralized run time environments and programs, and mobile software agents.
 
 @include-section["guide.scrbl"]
 @include-section["reference.scrbl"]
+@include-section["tech-report.scrbl"]

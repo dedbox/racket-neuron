@@ -1,6 +1,7 @@
 #lang scribble/manual
 
-@(require "base.rkt")
+@(require "base.rkt"
+          "drawings.rkt")
 
 @title[
   #:style '(unnumbered)

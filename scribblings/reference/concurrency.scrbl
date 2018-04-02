@@ -57,8 +57,8 @@ an unhandled exception re-raises the exception.
 
 @section{Mediated Exchange}
 
-@; @margin-note{@secref{The Neuron Technical Report} gives a detailed explanation
-@; of how and why exchangers differ from ordinary @rtech{channels}.}
+@margin-note{@secref{The Neuron Technical Report} explains the difference
+between exchangers and @rtech{channels}.}
 
 An @deftech{exchanger} is a @rtech{channel}-based primitive that both
 synchronizes a pair of threads and passes a value from one to the other.
