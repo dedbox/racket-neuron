@@ -49,36 +49,36 @@
 
 (define (giver-evt tx rx v)
   (evt-sequence
-   (λ () (ex-offer-evt tx #:to rx))
-   (λ () (ex-put-evt v #:into tx))
+   (λ () (offer-evt tx #:to rx))
+   (λ () (put-evt v #:into tx))
    #:then void))
 
 (define (taker-evt rx)
   (evt-series
-   (λ _ (ex-accept-evt #:from rx))
-   (λ (tx) (ex-get-evt #:from tx))))
+   (λ _ (accept-evt #:from rx))
+   (λ (tx) (get-evt #:from tx))))
 
 (define (emitter-evt tx v)
   (evt-series
-   (λ _ (ex-accept-evt #:from tx))
-   (λ (rx) (ex-put-evt v #:into rx))
+   (λ _ (accept-evt #:from tx))
+   (λ (rx) (put-evt v #:into rx))
    #:then void))
 
 (define (receiver-evt rx tx)
   (evt-sequence
-   (λ () (ex-offer-evt rx #:to tx))
-   (λ () (ex-get-evt #:from rx))))
+   (λ () (offer-evt rx #:to tx))
+   (λ () (get-evt #:from rx))))
 
 (define (forwarder-evt tx rx)
   (evt-series
-   (λ _ (ex-accept-evt #:from tx))
-   (λ (ex) (ex-offer-evt ex #:to rx))
+   (λ _ (accept-evt #:from tx))
+   (λ (ex) (offer-evt ex #:to rx))
    #:then void))
 
 (define (coupler-evt rx tx [ex (make-exchanger)])
   (evt-sequence
-   (λ () (ex-offer-evt ex #:to rx))
-   (λ () (ex-offer-evt ex #:to tx))
+   (λ () (offer-evt ex #:to rx))
+   (λ () (offer-evt ex #:to tx))
    #:then void))
 
 ;;; Unit Tests
