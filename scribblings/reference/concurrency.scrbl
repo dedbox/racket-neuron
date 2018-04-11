@@ -129,21 +129,21 @@ with precise control flow semantics can be defined.
 
 }
 
-@defproc[(emitter [tx exchanger?] [v any/c]) void?]{
-
-  Puts @var[v] into an exchanger accepted from @var[tx].
-
-}
-
 @defproc[(receiver [rx exchanger?] [tx exchanger?]) any/c]{
 
   Offers @var[rx] to @var[tx], then gets a value from @var[rx].
 
 }
 
-@defproc[(forwarder [tx exchanger?] [rx exchanger?]) void?]{
+@defproc[(emitter [tx exchanger?] [v any/c]) void?]{
 
-  Offers an exchanger accepted from @var[tx] to @var[rx].
+  Puts @var[v] into an exchanger accepted from @var[tx].
+
+}
+
+@defproc[(forwarder [ex1 exchanger?] [ex2 exchanger?]) void?]{
+
+  Offers an exchanger accepted from @var[ex1] to @var[ex2].
 
 }
 
@@ -172,14 +172,6 @@ with precise control flow semantics can be defined.
 
 }
 
-@defproc[(emitter-evt [tx exchanger?] [v any/c]) evt?]{
-
-  Returns a fresh @rtech{synchronizable event} that becomes @rtech{ready for
-  synchronization} when @racket[(emitter #,(var tx) #,(var v))] would not
-  block.
-
-}
-
 @defproc[(receiver-evt [rx exchanger?] [tx exchanger?]) evt?]{
 
   Returns a constant @rtech{synchronizable event} that becomes @rtech{ready
@@ -189,10 +181,18 @@ with precise control flow semantics can be defined.
 
 }
 
-@defproc[(forwarder-evt [tx exchanger?] [rx exchanger?]) evt?]{
+@defproc[(emitter-evt [tx exchanger?] [v any/c]) evt?]{
+
+  Returns a fresh @rtech{synchronizable event} that becomes @rtech{ready for
+  synchronization} when @racket[(emitter #,(var tx) #,(var v))] would not
+  block.
+
+}
+
+@defproc[(forwarder-evt [ex1 exchanger?] [ex2 exchanger?]) evt?]{
 
   Returns a constant @rtech{synchronizable event} that becomes @rtech{ready
-  for synchronization} when @racket[(forwarder #,(var tx) #,(var rx))] would
+  for synchronization} when @racket[(forwarder #,(var ex1) #,(var ex2))] would
   not block.
 
 }
@@ -493,18 +493,18 @@ Processes are created explicitly by the @racket[process] function. Use
 
 }
 
-@defproc[(emit [v any/c (void)]) void?]{
-
-  Blocks until a receiver is ready to accept the value @var[v] through the
-  transmitting @tech{exchanger} of the current process.
-
-}
-
 @defproc[(recv [π process?]) any/c]{
 
   Blocks until @var[π] is ready to provide a value through its transmitting
   @tech{exchanger}, or until @var[π] is dead. Returns the provided value, or
   @racket[eof] if @var[π] died.
+
+}
+
+@defproc[(emit [v any/c (void)]) void?]{
+
+  Blocks until a receiver is ready to accept the value @var[v] through the
+  transmitting @tech{exchanger} of the current process.
 
 }
 
@@ -552,20 +552,20 @@ Processes are created explicitly by the @racket[process] function. Use
 
 }
 
-@defproc[(emit-evt [v any/c (void)]) evt?]{
-
-  Returns a fresh @rtech{synchronizable event} that becomes @rtech{ready for
-  synchronization} when a receiver is ready to accept the value @var[v]
-  through the transmitting @tech{exchanger} of the current process.
-
-}
-
 @defproc[(recv-evt [π process?]) evt?]{
 
   Returns a constant @rtech{synchronizable event} that becomes @rtech{ready
   for synchronization} when @var[π] is ready to provide a value through its
   transmitting @tech{exchanger}, or until @var[π] is dead. The
   @rtech{synchronization result} is the provided value or @racket[eof].
+
+}
+
+@defproc[(emit-evt [v any/c (void)]) evt?]{
+
+  Returns a fresh @rtech{synchronizable event} that becomes @rtech{ready for
+  synchronization} when a receiver is ready to accept the value @var[v]
+  through the transmitting @tech{exchanger} of the current process.
 
 }
 

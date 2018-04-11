@@ -11,8 +11,8 @@
  (contract-out
   [give (->* (process?) (any/c) boolean?)]
   [take (-> any/c)]
-  [emit (->* () (any/c) void?)]
   [recv (-> process? any/c)]
+  [emit (->* () (any/c) void?)]
   [call (-> process? any/c any/c)]
   [forward-to (-> process? void?)]
   [forward-from (-> process? void?)]
@@ -39,11 +39,11 @@
 (define (take)
   (sync (take-evt)))
 
-(define (emit [v (void)])
-  (sync (emit-evt v)))
-
 (define (recv π)
   (sync (recv-evt π)))
+
+(define (emit [v (void)])
+  (sync (emit-evt v)))
 
 (define (call π [v (void)])
   (give π v)
@@ -70,16 +70,16 @@
 (define (take-evt)
   (taker-evt (process-rx (current-process))))
 
-(define (emit-evt [v (void)])
-  (define tx (process-tx (current-process)))
-  (handle-evt (emitter-evt tx v) void))
-
 (define (recv-evt π)
   (define tx (process-tx π))
   (define rx (process-rx (current-process)))
   (choice-evt
    (receiver-evt rx tx)
    (handle-evt π (λ _ eof))))
+
+(define (emit-evt [v (void)])
+  (define tx (process-tx (current-process)))
+  (handle-evt (emitter-evt tx v) void))
 
 (define (forward-to-evt π)
   (forwarder-evt
@@ -131,18 +131,6 @@
     (void (sync π)))
 
   (test-case
-    "emit blocks until a process accepts v."
-    (define π (process (λ () (check-false (not (emit))))))
-    (recv π)
-    (void (sync π)))
-
-  (test-case
-    "emit returns void."
-    (define π (process (λ () (check-pred void? (emit)))))
-    (recv π)
-    (void (sync π)))
-
-  (test-case
     "recv blocks until a value is accepted from π."
     (check-false (not (recv (process (λ () (emit)))))))
 
@@ -157,6 +145,18 @@
   (test-case
     "recv returns eof when π dies."
     (check-pred eof-object? (recv (process die))))
+
+  (test-case
+    "emit blocks until a process accepts v."
+    (define π (process (λ () (check-false (not (emit))))))
+    (recv π)
+    (void (sync π)))
+
+  (test-case
+    "emit returns void."
+    (define π (process (λ () (check-pred void? (emit)))))
+    (recv π)
+    (void (sync π)))
 
   (test-case
     "call gives v to π and then recvs from π."
@@ -197,18 +197,6 @@
     (void (sync π)))
 
   (test-case
-    "An emit-evt is ready when a process accepts v."
-    (define π (process (λ () (check-false (not (sync (emit-evt)))))))
-    (recv π)
-    (void (sync π)))
-
-  (test-case
-    "An emit-evt syncs to void."
-    (define π (process (λ () (check-pred void? (sync (emit-evt))))))
-    (recv π)
-    (void (sync π)))
-
-  (test-case
     "A recv-evt is ready when a value is accepted from π."
     (define π (process (λ () (take) (emit))))
     (define evt (recv-evt π))
@@ -226,6 +214,18 @@
     (define evt (recv-evt π))
     (kill π)
     (check-pred eof-object? (sync evt)))
+
+  (test-case
+    "An emit-evt is ready when a process accepts v."
+    (define π (process (λ () (check-false (not (sync (emit-evt)))))))
+    (recv π)
+    (void (sync π)))
+
+  (test-case
+    "An emit-evt syncs to void."
+    (define π (process (λ () (check-pred void? (sync (emit-evt))))))
+    (recv π)
+    (void (sync π)))
 
   (test-case
     "forward-to-evt"

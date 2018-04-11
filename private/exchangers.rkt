@@ -8,8 +8,8 @@
  (contract-out
   [giver (-> exchanger? exchanger? any/c void?)]
   [taker (-> exchanger? any/c)]
-  [emitter (-> exchanger? any/c void?)]
   [receiver (-> exchanger? exchanger? any/c)]
+  [emitter (-> exchanger? any/c void?)]
   [forwarder (-> exchanger? exchanger? void?)]
   [coupler
    (->* (exchanger? exchanger?)
@@ -33,14 +33,14 @@
 (define (taker rx)
   (sync (taker-evt rx)))
 
-(define (emitter tx v)
-  (sync (emitter-evt tx v)))
-
 (define (receiver rx tx)
   (sync (receiver-evt rx tx)))
 
-(define (forwarder tx rx)
-  (sync (forwarder-evt tx rx)))
+(define (emitter tx v)
+  (sync (emitter-evt tx v)))
+
+(define (forwarder ex1 ex2)
+  (sync (forwarder-evt ex1 ex2)))
 
 (define (coupler rx tx [ex (make-exchanger)])
   (sync (coupler-evt rx tx ex)))
@@ -58,21 +58,21 @@
    (λ _ (accept-evt #:from rx))
    (λ (tx) (get-evt #:from tx))))
 
+(define (receiver-evt rx tx)
+  (evt-sequence
+   (λ () (offer-evt rx #:to tx))
+   (λ () (get-evt #:from rx))))
+
 (define (emitter-evt tx v)
   (evt-series
    (λ _ (accept-evt #:from tx))
    (λ (rx) (put-evt v #:into rx))
    #:then void))
 
-(define (receiver-evt rx tx)
-  (evt-sequence
-   (λ () (offer-evt rx #:to tx))
-   (λ () (get-evt #:from rx))))
-
-(define (forwarder-evt tx rx)
+(define (forwarder-evt ex1 ex2)
   (evt-series
-   (λ _ (accept-evt #:from tx))
-   (λ (ex) (offer-evt ex #:to rx))
+   (λ _ (accept-evt #:from ex1))
+   (λ (ex) (offer-evt ex #:to ex2))
    #:then void))
 
 (define (coupler-evt rx tx [ex (make-exchanger)])
