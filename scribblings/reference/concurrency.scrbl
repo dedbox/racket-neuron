@@ -91,25 +91,25 @@ with precise control flow semantics can be defined.
 
 }
 
-@defproc[(ex-offer [ex1 exchanger?] [#:to ex2 exchanger?]) void?]{
+@defproc[(offer [ex1 exchanger?] [#:to ex2 exchanger?]) void?]{
 
   Blocks until @var[ex2] is ready to accept @var[ex1].
 
 }
 
-@defproc[(ex-accept [#:from ex exchanger?]) exchanger?]{
+@defproc[(accept [#:from ex exchanger?]) exchanger?]{
 
   Blocks until an exchanger is offered to @var[ex].
 
 }
 
-@defproc[(ex-put [v any/c] [#:into ex exchanger?]) void?]{
+@defproc[(put [v any/c] [#:into ex exchanger?]) void?]{
 
   Blocks until an exchanger is ready to get @var[v] from @var[ex].
 
 }
 
-@defproc[(ex-get [#:from ex exchanger?]) any/c]{
+@defproc[(get [#:from ex exchanger?]) any/c]{
 
   Blocks until an exchanger puts a value into @var[ex].
 
