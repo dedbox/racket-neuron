@@ -139,21 +139,27 @@
    v lc-find
    #:label (text "get" null 14)))
 
-(define (seq pict1 pict2)
-  (hc-append 20 pict1 (text ";" null 40) pict2))
+(define (intersperse y xs)
+  (if (or (null? xs) (null? (cdr xs)))
+      xs
+      (list* (car xs) y (intersperse y (cdr xs)))))
 
-(define-syntax-rule (named-seqs [name pict1 pict2] ...
-                                [last-name last-pict1 last-pict2])
+(define (seq . picts)
+  (apply (curry hc-append 20)
+         (intersperse (text ";" null 40) picts)))
+
+(define-syntax-rule (named-seqs [name pict1 picts ...] ...
+                                [last-name last-pict1 last-picts ...])
   (tabular
    #:style leading-spaces-style
    #:cell-properties '((center))
    (append
     (list
-     (list (text name 'roman 14) (seq pict1 pict2))
+     (list (text name 'roman 14) (seq pict1 picts ...))
      (list (blank 25) 'cont))
     ...
     (list
-     (list (text last-name 'roman 14) (seq last-pict1 last-pict2))))))
+     (list (text last-name 'roman 14) (seq last-pict1 last-picts ...))))))
 
 (define (code-pict-def code pict)
   (tabular
