@@ -15,12 +15,12 @@ reuse and simplifies customization without sacrificing flexibility. Each layer
 of the framework provides functionality for subsequent layers to build upon.
 
 The foundational layer defines the concurrency and serialization models used
-throughout the library. It provides a spectrum of protocol-agnostic constructs
-for asymmetric dataflow networking along with support for some protocols and
-formats. It also includes a privileged command mechanism suitable for
-information flow control. This foundation empowers developers to grow highly
-dynamic networks from the REPL by composing relatively simple components into
-more complex ones.
+throughout the library. It contains a collection of protocol-agnostic
+constructs for high-level network programming and implementations for some
+basic protocols and formats. It also includes a privileged command mechanism
+suitable for information flow control. This foundation empowers developers to
+grow highly dynamic networks from the REPL by composing relatively simple
+components into more complex ones.
 
 @local-table-of-contents[#:style 'immediate-only]
 
