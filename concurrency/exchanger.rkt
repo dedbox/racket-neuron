@@ -8,7 +8,9 @@
 (provide
  (contract-out
   [exchanger? predicate/c]
-  [make-exchanger (-> exchanger?)]
+  [make-exchanger (->* () (channel? channel?) exchanger?)]
+  [exchanger-ctrl-ch (-> exchanger? channel?)]
+  [exchanger-data-ch (-> exchanger? channel?)]
   [offer (-> exchanger? #:to exchanger? void?)]
   [accept (-> #:from exchanger? exchanger?)]
   [put (-> any/c #:into exchanger? void?)]
@@ -20,10 +22,8 @@
 
 (struct exchanger (ctrl-ch data-ch))
 
-(define (make-exchanger)
-  (exchanger
-   (make-channel)
-   (make-channel)))
+(define (make-exchanger [ctrl-ch (make-channel)] [data-ch (make-channel)])
+  (exchanger ctrl-ch data-ch))
 
 ;; Commands
 

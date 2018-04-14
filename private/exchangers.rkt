@@ -11,6 +11,7 @@
   [receiver (-> exchanger? exchanger? any/c)]
   [emitter (-> exchanger? any/c void?)]
   [forwarder (-> exchanger? exchanger? void?)]
+  [filterer (-> exchanger? exchanger? #:with (-> any/c any/c) void?)]
   [coupler
    (->* (exchanger? exchanger?)
         (exchanger?)
@@ -20,6 +21,7 @@
   [emitter-evt (-> exchanger? any/c evt?)]
   [receiver-evt (-> exchanger? exchanger? evt?)]
   [forwarder-evt (-> exchanger? exchanger? evt?)]
+  [filterer-evt (-> exchanger? exchanger? #:with (-> any/c any/c) evt?)]
   [coupler-evt
    (->* (exchanger? exchanger?)
         (exchanger?)
@@ -41,6 +43,9 @@
 
 (define (forwarder ex1 ex2)
   (sync (forwarder-evt ex1 ex2)))
+
+(define (filterer ex1 ex2 #:with proc)
+  (sync (filterer-evt ex1 ex2 #:with proc)))
 
 (define (coupler rx tx [ex (make-exchanger)])
   (sync (coupler-evt rx tx ex)))
@@ -75,6 +80,19 @@
    (λ (ex) (offer-evt ex #:to ex2))
    #:then void))
 
+(define (filterer-evt ex1 ex2 #:with proc)
+  (evt-series
+   (λ _ (accept-evt #:from ex1))
+   (λ (ex)
+     (offer-evt
+      (make-exchanger
+       (exchanger-ctrl-ch ex)
+       (impersonate-channel
+        (exchanger-data-ch ex)
+        (λ (c) (values c proc))
+        (λ (c v) (proc v))))
+      #:to ex2))))
+
 (define (coupler-evt rx tx [ex (make-exchanger)])
   (evt-sequence
    (λ () (offer-evt ex #:to rx))
@@ -84,7 +102,8 @@
 ;;; Unit Tests
 
 (module+ test
-  (require rackunit)
+  (require rackunit
+           racket/function)
 
   (test-case
     "giver -> taker"
@@ -153,6 +172,46 @@
     (thread (λ () (for ([_ 10]) (forwarder tx2 tx1))))
     (thread (λ () (for ([i 10]) (check-pred void? (emitter tx1 i)))))
     (for ([j 10]) (check = (receiver rx2 tx2) j)))
+
+  (test-case
+    "giver -> filterer -> taker"
+    (define tx1 (make-exchanger))
+    (define rx1 (make-exchanger))
+    (define tx2 (make-exchanger))
+    (define rx2 (make-exchanger))
+    (thread (λ () (for ([_ 10]) (filterer rx1 rx2 #:with add1))))
+    (thread (λ () (for ([j 10]) (check = (taker rx2) (+ j 1)))))
+    (for ([i 10]) (check-pred void? (giver tx1 rx1 i))))
+
+  (test-case
+    "taker <- filterer <- giver"
+    (define tx1 (make-exchanger))
+    (define rx1 (make-exchanger))
+    (define tx2 (make-exchanger))
+    (define rx2 (make-exchanger))
+    (thread (λ () (for ([_ 10]) (filterer rx1 rx2 #:with sub1))))
+    (thread (λ () (for ([i 10]) (check-pred void? (giver tx1 rx1 i)))))
+    (for ([j 10]) (check = (taker rx2) (- j 1))))
+
+  (test-case
+    "emitter -> filterer -> receiver" 
+    (define tx1 (make-exchanger))
+    (define rx1 (make-exchanger))
+    (define tx2 (make-exchanger))
+    (define rx2 (make-exchanger))
+    (thread (λ () (for ([k 10]) (filterer tx2 tx1 #:with (curry * 2)))))
+    (thread (λ () (for ([j 10]) (check = (receiver rx2 tx2) (+ j j)))))
+    (for ([i 10]) (check-pred void? (emitter tx1 i))))
+
+  (test-case
+    "receiver <- filterer <- emitter"
+    (define tx1 (make-exchanger))
+    (define rx1 (make-exchanger))
+    (define tx2 (make-exchanger))
+    (define rx2 (make-exchanger))
+    (thread (λ () (for ([_ 10]) (filterer tx2 tx1 #:with (curry * 3)))))
+    (thread (λ () (for ([i 10]) (check-pred void? (emitter tx1 i)))))
+    (for ([j 10]) (check = (receiver rx2 tx2) (+ j j j))))
 
   (test-case
     "emitter -> coupler -> taker"

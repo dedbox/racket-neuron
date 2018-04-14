@@ -148,6 +148,18 @@ with precise control flow semantics can be defined.
 }
 
 @defproc[
+  (filterer [ex1 exchanger?]
+            [ex2 exchanger?]
+            [#:with proc (-> any/c any/c)])
+  void?
+]{
+
+  Forwards a value from @var[ex1] to @var[ex2]. Applies @var[proc] to the
+  value being forwarded.
+
+}
+
+@defproc[
   (coupler [rx exchanger?] [tx exchanger?] [ex exchanger? (make-exchanger)])
   void?
 ]{
@@ -194,6 +206,19 @@ with precise control flow semantics can be defined.
   Returns a constant @rtech{synchronizable event} that becomes @rtech{ready
   for synchronization} when @racket[(forwarder #,(var ex1) #,(var ex2))] would
   not block.
+
+}
+
+@defproc[
+  (filterer-evt [ex1 exchanger?]
+                [ex2 exchanger?]
+                [#:with proc (-> any/c any/c)])
+  evt?
+]{
+
+  Returns a constant @rtech{synchronizable event} that becomes @rtech{ready
+  for synchronization} when @racket[(filterer #,(var ex1) #,(var ex2) #:with
+  #,(var proc))] would not block.
 
 }
 
