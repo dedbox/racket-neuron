@@ -1,7 +1,6 @@
 #lang racket/base
 
 (require racket/contract/base
-         racket/dict
          (prefix-in list: racket/list))
 
 (provide

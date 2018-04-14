@@ -1,7 +1,7 @@
 #lang scribble/manual
 
 @(require "base.rkt"
-          "drawings.rkt")
+          (prefix-in d: "drawings.rkt"))
 
 @title[
   #:style '(unnumbered)
@@ -24,60 +24,60 @@ structural pattern-based DSL for working with composable evaluators.
   @vc-append[
     10
     @hc-append[
-      @label[100 35]{Control}
+      @d:label[100 35]{Control}
       @vc-append[
         @hc-append[
-          @layer[100 35]{Evaluators}
-          @layer[100 35]{Processes}
+          @d:layer[100 35]{Evaluators}
+          @d:layer[100 35]{Processes}
         ]
-        @layer[200 35]{Data Flows}
+        @d:layer[200 35]{Data Flows}
       ]
     ]
     @hc-append[
-      @label[100 35]{Operate}
+      @d:label[100 35]{Operate}
       @vc-append[
         @hc-append[
-          @layer[100 35]{Consistent}
-          @layer[100 35]{Available}
+          @d:layer[100 35]{Consistent}
+          @d:layer[100 35]{Available}
         ]
-        @layer[200 35]{Distributed Systems}
+        @d:layer[200 35]{Distributed Systems}
       ]
     ]
     @hc-append[
-      @label[100 35]{Cooperate}
+      @d:label[100 35]{Cooperate}
       @vc-append[
         @hc-append[
-          @layer[100 35]{Identity}
-          @layer[100 35]{Consensus}
-          @layer[100 35]{Capabilities}
+          @d:layer[100 35]{Identity}
+          @d:layer[100 35]{Consensus}
+          @d:layer[100 35]{Capabilities}
         ]
         @hc-append[
-          @layer[100 35]{Trust}
-          @layer[100 35]{Reputation}
-          @layer[100 35]{Authorization}
+          @d:layer[100 35]{Trust}
+          @d:layer[100 35]{Reputation}
+          @d:layer[100 35]{Authorization}
         ]
         @hc-append[
-          @layer[200 35]{Agreement}
-          @layer[100 35]{Enforcement}
+          @d:layer[200 35]{Agreement}
+          @d:layer[100 35]{Enforcement}
         ]
-        @layer[300 35]{Decentralized Applications}
+        @d:layer[300 35]{Decentralized Applications}
       ]
     ]
     @hc-append[
-      @label[100 35]{Grow}
+      @d:label[100 35]{Grow}
       @vc-append[
         @hc-append[
           @vc-append[
             @hc-append[
-              @layer[100 35]{Agency}
-              @layer[100 35]{Adaptation}
-              @layer[100 35]{Reproduction}
+              @d:layer[100 35]{Agency}
+              @d:layer[100 35]{Adaptation}
+              @d:layer[100 35]{Reproduction}
             ]
-            @layer[300 35]{Organism}
+            @d:layer[300 35]{Organism}
           ]
-          @layer[100 70]{Resources}
+          @d:layer[100 70]{Resources}
         ]
-        @layer[400 35]{Software Ecosystem}
+        @d:layer[400 35]{Software Ecosystem}
       ]
     ]
   ]
@@ -160,12 +160,12 @@ installed. A @deftech{hook} is a function to be invoked automatically at
 specific points in the life time of a @tech{process}.
 
 @; nodes
-@(define starting-box (label 70 35 "starting"))
-@(define alive-box (label 70 35 "alive"))
-@(define stopping-box (label 70 35 "stopping"))
-@(define dying-box (label 70 35 "dying"))
-@(define dead-box (label 70 35 "dead"))
-@(define blank-box (label 70 35 ""))
+@(define starting-box (d:label 70 35 "starting"))
+@(define alive-box (d:label 70 35 "alive"))
+@(define stopping-box (d:label 70 35 "stopping"))
+@(define dying-box (d:label 70 35 "dying"))
+@(define dead-box (d:label 70 35 "dead"))
+@(define blank-box (d:label 70 35 ""))
 
 @; layout
 @(define life-cycle-diagram

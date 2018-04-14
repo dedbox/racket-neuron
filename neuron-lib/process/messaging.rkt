@@ -1,13 +1,13 @@
 #lang racket/base
 
-(require neuron/concurrency/exchanger
-         neuron/concurrency/process
-         neuron/private/events
-         neuron/private/exchangers
-         racket/contract/base)
+(require
+ neuron/event
+ neuron/exchanger
+ neuron/process
+ neuron/process/exchanger
+ racket/contract/base)
 
 (provide
- (all-from-out neuron/private/exchangers)
  (contract-out
   [give (->* (process?) (any/c) boolean?)]
   [take (-> any/c)]

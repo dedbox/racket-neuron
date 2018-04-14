@@ -1,12 +1,17 @@
 #lang racket/base
 
-(require neuron/concurrency
-         neuron/data-flow/codec
-         neuron/data-flow/socket
-         neuron/evaluation
-         racket/contract/base
-         racket/function
-         racket/tcp)
+(require
+ neuron/data-flow/codec
+ neuron/data-flow/socket
+ neuron/evaluation
+ neuron/event
+ neuron/process
+ neuron/process/control
+ neuron/process/messaging
+ neuron/syntax
+ racket/contract/base
+ racket/function
+ racket/tcp)
 
 (provide
  (contract-out

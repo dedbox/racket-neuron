@@ -1,7 +1,7 @@
 #lang racket/base
 
 (require
- neuron/concurrency/exchanger
+ neuron/exchanger
  racket/contract/base
  (only-in racket/list flatten))
 

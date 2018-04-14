@@ -1,9 +1,7 @@
 #lang racket/base
 
 (require
- neuron/private/events
- racket/contract/base
- racket/function)
+ racket/contract/base)
 
 (provide
  (contract-out

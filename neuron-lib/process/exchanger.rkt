@@ -1,8 +1,9 @@
 #lang racket/base
 
-(require neuron/concurrency/exchanger
-         neuron/private/events
-         racket/contract/base)
+(require
+ neuron/event
+ neuron/exchanger
+ racket/contract/base)
 
 (provide
  (contract-out

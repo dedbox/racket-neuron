@@ -1,19 +1,17 @@
 #lang racket/base
 
-(require neuron/concurrency/ipc
-         neuron/concurrency/process
-         neuron/evaluation
-         neuron/private/events
-         neuron/private/syntax
-         racket/contract/base
-         racket/dict
-         racket/function
-         (only-in racket/list flatten make-list last))
+(require
+ neuron/evaluation
+ neuron/event
+ neuron/process
+ neuron/process/messaging
+ neuron/syntax
+ racket/contract/base
+ racket/dict
+ racket/function
+ (only-in racket/list flatten make-list last))
 
 (provide
- (all-from-out
-  neuron/private/events
-  neuron/private/syntax)
  (contract-out
   [server (-> (-> any/c any/c) process?)]
   [proxy (-> process? process?)]

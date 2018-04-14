@@ -2,13 +2,12 @@
 
 (define collection "neuron")
 
-(define deps '("base"))
+;; (define deps '("base"))
 
 (define build-deps
   '("at-exp-lib"
     "pict-lib"
     "racket-doc"
-    "rackunit-lib"
     "sandbox-lib"
     "scribble-lib"))
 

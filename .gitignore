@@ -3,5 +3,5 @@
 .\#*
 .DS_Store
 compiled/
-/doc/
-/coverage/
+doc/
+coverage/

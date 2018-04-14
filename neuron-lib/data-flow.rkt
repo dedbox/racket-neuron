@@ -1,8 +1,8 @@
 #lang racket/base
 
-(require neuron/private/require)
+(require neuron/reprovide)
 
-(require-and-provide
+(reprovide
  neuron/data-flow/codec
  neuron/data-flow/network
  neuron/data-flow/socket)

@@ -1,16 +1,20 @@
 #lang racket/base
 
 (require
- neuron/concurrency
  neuron/data-flow/socket
  neuron/evaluation
+ neuron/process
+ neuron/process/control
+ neuron/process/messaging
+ neuron/syntax
  json
  racket/contract/base
  racket/splicing)
 
 (require
- (for-syntax racket/base
-             racket/syntax))
+ (for-syntax
+  racket/base
+  racket/syntax))
 
 (provide
  define-codec

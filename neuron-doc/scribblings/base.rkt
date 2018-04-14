@@ -1,22 +1,23 @@
 #lang racket/base
 
-(require neuron/private/require)
+(require neuron/reprovide)
 
-(require-and-provide
- neuron
+(reprovide
  pict
  racket/math
  racket/sandbox
  scribble/examples
  scribble/manual)
 
-(require-for-label-and-provide
- neuron
- json
+(reprovide-for-label
  racket/base
  racket/contract
  racket/match
- racket/tcp)
+ racket/tcp
+ json)
+
+(reprovide/for-label
+ neuron)
 
 (provide (all-defined-out))
 

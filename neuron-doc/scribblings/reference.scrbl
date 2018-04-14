@@ -8,7 +8,7 @@
 ]{The Neuron Reference}
 @author{@author+email["Eric Griffis" "dedbox@gmail.com"]}
 
-@defmodule[neuron #:packages ("neuron")]
+@defmodule[neuron #:packages ("neuron-lib")]
 
 This library is structured as a layered framework. Its architecture encourages
 reuse and simplifies customization without sacrificing flexibility. Each layer

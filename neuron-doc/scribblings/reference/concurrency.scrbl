@@ -4,8 +4,6 @@
 
 @title{Concurrency}
 
-@(defmodule neuron/concurrency #:packages ("neuron"))
-
 A @deftech{process} is a @rtech{thread}-like concurrency primitive. Processes
 are made from @rtech{threads} by replacing the @seclink["threadmbox" #:doc
 '(lib "scribblings/reference/reference.scrbl")]{thread mailbox} with a few
@@ -59,6 +57,8 @@ an unhandled exception re-raises the exception.
 
 @margin-note{@secref{The Neuron Technical Report} explains the difference
 between exchangers and @rtech{channels}.}
+
+@(defmodule neuron/exchanger)
 
 An @deftech{exchanger} is a @rtech{channel}-based primitive that both
 synchronizes a pair of threads and passes a value from one to the other.
@@ -116,6 +116,8 @@ with precise control flow semantics can be defined.
 }
 
 @subsection{Process Exchangers}
+
+@(defmodule neuron/process/exchanger)
 
 @defproc[(giver [tx exchanger?] [rx exchanger?] [v any/c]) void?]{
 
@@ -235,6 +237,8 @@ with precise control flow semantics can be defined.
 
 @section{Control Flow}
 
+@(defmodule neuron/syntax)
+
 @defform[(forever body ...)]{
 
   Evaluates @var[body]s repeatedly.
@@ -265,6 +269,10 @@ with precise control flow semantics can be defined.
     (apply-values list (values 1 2 3))
   ]
 }
+
+@section{Composite Events}
+
+@(defmodule neuron/event)
 
 @defproc[(evt-set [evt evt?] ...) evt?]{
 
@@ -361,6 +369,8 @@ with precise control flow semantics can be defined.
 }
 
 @section{Starting and Stopping Processes}
+
+@(defmodule neuron/process)
 
 Processes are created explicitly by the @racket[process] function. Use
 @racket[start] to install hooks and handlers.
@@ -503,6 +513,8 @@ Processes are created explicitly by the @racket[process] function. Use
 
 @section{Inter-Process Communication}
 
+@(defmodule neuron/process/messaging)
+
 @defproc[(give [π process?] [v any/c (void)]) boolean?]{
 
   Blocks until @var[π] is ready to accept @var[v] on its receiving
@@ -619,6 +631,8 @@ Processes are created explicitly by the @racket[process] function. Use
 }
 
 @section{Process Control Flow}
+
+@(defmodule neuron/process/control)
 
 @defproc[(server [proc (-> any/c any/c)]) process?]{
 

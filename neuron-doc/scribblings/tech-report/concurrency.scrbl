@@ -2,7 +2,7 @@
 
 @(require
   "../base.rkt"
-  "../drawings.rkt"
+  (prefix-in d: "../drawings.rkt")
   pict/convert)
 
 @title{A scale-invariant concurrency model}
@@ -31,20 +31,20 @@ taker blocks to get a value from the forwarder. The forwarder accepts a value
 from the giver as the giver unblocks ahead of the taker. The intended
 synchronization is now impossible.
 
-@(named-seqs
-  ["giver" (ch-put "v" #:into "ch1") (punct "Ø")]
-  ["forwader" (ch-get #:from "ch1" "v") (ch-put "v" #:into "ch2")]
-  ["taker" (ch-get #:from "ch2" "v") (punct "Ø")])
+@(d:named-seqs
+  ["giver" (d:ch-put "v" #:into "ch1") (d:punct "Ø")]
+  ["forwader" (d:ch-get #:from "ch1" "v") (d:ch-put "v" #:into "ch2")]
+  ["taker" (d:ch-get #:from "ch2" "v") (d:punct "Ø")])
 
 In the other direction, the emitter blocks to put a value into the forwarder
 while the receiver blocks to get a value from the forwarder. The forwarder
 accepts a value from the emitter as the emitter unblocks ahead of the
 receiver. Again, the intended synchronization becomes impossible.
 
-@(named-seqs
-  ["emiter" (ch-put "v" #:into "ch1") (punct "Ø")]
-  ["forwarder" (ch-get #:from "ch1" "v") (ch-put "v" #:into "ch2")]
-  ["receiver" (ch-get #:from "ch2" "v") (punct "Ø")])
+@(d:named-seqs
+  ["emiter" (d:ch-put "v" #:into "ch1") (d:punct "Ø")]
+  ["forwarder" (d:ch-get #:from "ch1" "v") (d:ch-put "v" #:into "ch2")]
+  ["receiver" (d:ch-get #:from "ch2" "v") (d:punct "Ø")])
 
 Exchangers are an alternative to bare channels that preserve synchronization
 across mediated exchanges by deferring the synchronizing operation until all
@@ -52,35 +52,35 @@ sides have committed to the exchange.
 
 @subsection{Primitive operations}
 
-@(code-pict-def
+@(d:code-pict-def
   @racket[(make-exchanger) (code:comment "ex")]
-  (exchanger))
+  (d:exchanger))
 
 An exchanger contains a control channel and a data channel.
 
-@(code-pict-def
+@(d:code-pict-def
   @racket[(offer ex1 #:to ex2)]
-  (offer "ex1" #:to "ex2"))
+  (d:offer "ex1" #:to "ex2"))
 
 A thread can offer one exchanger to another by putting the first into the
 control channel of the second.
 
-@(code-pict-def
+@(d:code-pict-def
   @racket[(accept #:from ex) (code:comment "ex*")]
-  (accept #:from "ex" "ex*"))
+  (d:accept #:from "ex" "ex*"))
 
 A thread can accept an exchanger by getting it from the control channel of
 another.
 
-@(code-pict-def
+@(d:code-pict-def
   @racket[(put v #:into ex)]
-  (put "v" #:into "ex"))
+  (d:put "v" #:into "ex"))
 
 A thread can put a value into the data channel of an exchanger.
 
-@(code-pict-def
+@(d:code-pict-def
   @racket[(get #:from ex) (code:comment "v")]
-  (get #:from "ex" "v"))
+  (d:get #:from "ex" "v"))
 
 A thread can get a value from the data channel of an exchanger.
 
@@ -88,38 +88,38 @@ A thread can get a value from the data channel of an exchanger.
 
 A process has two exchangers: one for transmitting and another for receiving.
 
-@(code-pict-defs
+@(d:code-pict-defs
   [@racket[(giver tx rx v)]
-   (seq (offer "tx" #:to "rx") (put "v" #:into "tx"))]
+   (d:seq (d:offer "tx" #:to "rx") (d:put "v" #:into "tx"))]
   [@racket[(taker rx)]
-   (seq (accept #:from "rx" "tx") (get #:from "tx" "v"))])
+   (d:seq (d:accept #:from "rx" "tx") (d:get #:from "tx" "v"))])
 
 In a give-take exchange, a giver offers its transmitting exchanger to the
 receiving exchanger of a taker. After the taker commits to the exchange by
 accepting the offer, a single value flows through the transmitting exchanger
 from giver to taker.
 
-@(code-pict-defs
+@(d:code-pict-defs
   [@racket[(receiver rx tx)]
-   (seq (offer "rx" #:to "tx") (get #:from "rx" "v"))]
+   (d:seq (d:offer "rx" #:to "tx") (d:get #:from "rx" "v"))]
   [@racket[(emitter tx v)]
-   (seq (accept #:from "tx" "rx") (put "v" #:into "rx"))])
+   (d:seq (d:accept #:from "tx" "rx") (d:put "v" #:into "rx"))])
 
 In a receive-emit exchange, a receiver offers its receiving exchanger to the
 transmitting exchanger of an emitter. After the emitter commits to the
 exchange by accepting the offer, a single value flows through the receiving
 exchanger from emitter to receiver.
 
-@(code-pict-def
+@(d:code-pict-def
   @racket[(forwarder ex1 ex2)]
-  (seq (accept #:from "ex1" "ex") (offer "ex" #:to "ex2")))
+  (d:seq (d:accept #:from "ex1" "ex") (d:offer "ex" #:to "ex2")))
 
 In a forwarding exchange, a mediator accepts an exchanger from one exchanger
 and then offers it to another.
 
-@(code-pict-def
+@(d:code-pict-def
   @racket[(coupler rx tx [ex (make-exchanger)])]
-  (seq (offer "ex" #:to "rx") (offer "ex" #:to "tx")))
+  (d:seq (d:offer "ex" #:to "rx") (d:offer "ex" #:to "tx")))
 
 In a coupling exchange, a mediator offers an exchanger to two others.
 
@@ -127,10 +127,10 @@ In a coupling exchange, a mediator offers an exchanger to two others.
 
 @subsubsection{Forwarding from giver to taker}
 
-@(named-seqs
-  ["giver" (offer "tx" #:to "ex1") (put "v" #:into "tx")]
-  ["forwarder" (accept #:from "ex1" "tx") (offer "tx" #:to "ex2")]
-  ["taker" (accept #:from "ex2" "tx") (get #:from "tx" "v")])
+@(d:named-seqs
+  ["giver" (d:offer "tx" #:to "ex1") (d:put "v" #:into "tx")]
+  ["forwarder" (d:accept #:from "ex1" "tx") (d:offer "tx" #:to "ex2")]
+  ["taker" (d:accept #:from "ex2" "tx") (d:get #:from "tx" "v")])
 
 The giver offers its transmitting exchanger to the forwarder and then blocks
 to put a value into the exchanger. The forwarder accepts the exchanger from
@@ -144,10 +144,10 @@ the giver from prematurely synchronizing on the forwarder.
 
 @subsubsection{Forwarding from emitter to receiver}
 
-@(named-seqs
-  ["receiver" (offer "rx" #:to "ex1") (get #:from "rx" "v")]
-  ["forwarder" (accept #:from "ex1" "rx") (offer "rx" #:to "ex2")]
-  ["emitter" (accept #:from "ex2" "rx") (put "v" #:into "rx")])
+@(d:named-seqs
+  ["receiver" (d:offer "rx" #:to "ex1") (d:get #:from "rx" "v")]
+  ["forwarder" (d:accept #:from "ex1" "rx") (d:offer "rx" #:to "ex2")]
+  ["emitter" (d:accept #:from "ex2" "rx") (d:put "v" #:into "rx")])
 
 The receiver offers its receiving exchanger to the forwarder and then blocks
 to get a value from the exchanger. The forwarder accepts the exchanger from
@@ -167,7 +167,7 @@ exchanger to a taker and then an emitter. The emitter and taker both accept
 the exchanger from the coupler and then synchronize by exchanging a value
 through the shared exchanger.
 
-@(named-seqs
-  ["coupler" (offer "ex" #:to "rx") (offer "ex" #:to "tx")]
-  ["emitter" (accept #:from "tx" "ex") (put "v" #:into "ex")]
-  ["taker" (accept #:from "rx" "ex") (get #:from "ex" "v")])
+@(d:named-seqs
+  ["coupler" (d:offer "ex" #:to "rx") (d:offer "ex" #:to "tx")]
+  ["emitter" (d:accept #:from "tx" "ex") (d:put "v" #:into "ex")]
+  ["taker" (d:accept #:from "rx" "ex") (d:get #:from "ex" "v")])
