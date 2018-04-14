@@ -13,5 +13,5 @@ messaging, along with components for building dynamic data-flow networks.
 <p align="center">
   <img
     alt="Neuron library stack diagram"
-    src="https://raw.githubusercontent.com/dedbox/racket-neuron/master/scribblings/neuron-library-stack.png">
+    src="https://raw.githubusercontent.com/dedbox/racket-neuron/master/neuron-doc/scribblings/neuron-library-stack.png">
 </p>
