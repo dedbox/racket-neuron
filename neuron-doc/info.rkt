@@ -2,7 +2,9 @@
 
 (define collection "neuron")
 
-;; (define deps '("base"))
+(define deps
+  '("base"
+    "neuron-lib"))
 
 (define build-deps
   '("at-exp-lib"
