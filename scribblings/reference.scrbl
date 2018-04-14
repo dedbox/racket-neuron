@@ -10,6 +10,18 @@
 
 @defmodule[neuron #:packages ("neuron")]
 
+This library is structured as a layered framework. Its architecture encourages
+reuse and simplifies customization without sacrificing flexibility. Each layer
+of the framework provides functionality for subsequent layers to build upon.
+
+The foundational layer defines the concurrency and serialization models used
+throughout the library. It provides a spectrum of protocol-agnostic constructs
+for asymmetric dataflow networking along with support for some protocols and
+formats. It also includes a privileged command mechanism suitable for
+information flow control. This foundation empowers developers to grow highly
+dynamic networks from the REPL by composing relatively simple components into
+more complex ones.
+
 @local-table-of-contents[#:style 'immediate-only]
 
 @include-section["reference/control-your-resources.scrbl"]
