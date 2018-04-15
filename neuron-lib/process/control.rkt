@@ -9,7 +9,8 @@
  racket/contract/base
  racket/dict
  racket/function
- (only-in racket/list flatten make-list last))
+ (only-in racket/list flatten make-list last)
+ racket/match)
 
 (provide
  (contract-out
@@ -104,31 +105,40 @@
   (define (get-peer key)
     (hash-ref peers key #f))
   (define (drop-peer key)
-    (define π (get-peer key))
-    (and π
-         (hash-remove! peers key)
-         (on-drop key π)
-         (semaphore-post latch)
-         #t))
-  (define (peer-give-evt msg)
-    (when ((list/c any/c any/c) msg)
-      (define π (get-peer (car msg)))
-      (and π (give-evt π (cadr msg)))))
-  (define (peer-emit-evt key π)
-    (replace-evt (recv-evt π) (λ (v) (emit-evt (list key v)))))
-  (define (next-peer-evt)
-    (apply choice-evt (dict-map (hash->list peers) peer-emit-evt)))
+    (if (hash-has-key? peers key)
+        (let ([π (hash-ref peers key)])
+          (hash-remove! peers key)
+          (on-drop key π)
+          (semaphore-post latch)
+          #t)
+        #f))
   (start
    (process
     (λ ()
+      (define (peer-take-evt)
+        (evt-series
+         (λ _ (take-evt))
+         (match-lambda
+           [(list key v)
+            (if (hash-has-key? peers key)
+                (handle-evt (give-evt (hash-ref peers key) v) (λ _ #t))
+                (handle-evt always-evt (λ _ #f)))]
+           [_ (handle-evt always-evt (λ _ #f))])))
+      (define (peer-emit-evt key π)
+        (replace-evt (recv-evt π) (λ (v) (emit-evt (list key v)))))
+      (define (peer-emit-evts)
+        (choice-evt
+         latch
+         (apply choice-evt
+                (dict-map (hash->list peers) peer-emit-evt))))
       (sync
-       (evt-loop (λ _ (evt-series (λ _ (take-evt)) peer-give-evt)))
-       (evt-loop (λ _ (choice-evt latch (next-peer-evt)))))))
+       (evt-loop (λ _ (peer-take-evt)))
+       (evt-loop (λ _ (peer-emit-evts))))))
    #:on-stop (λ () (for-each drop-peer (dict-keys (hash->list peers))))
    #:command (bind ([peers (hash->list peers)]
-                    [add add-peer]
-                    [get get-peer]
-                    [drop drop-peer])
+                    [(add ,π) (add-peer π)]
+                    [(get ,key) (get-peer key)]
+                    [(drop ,key) (drop-peer key)])
                    #:else unhandled)))
 
 (define (simulator proc #:rate [rate 10])
