@@ -83,68 +83,6 @@ structural pattern-based DSL for working with composable evaluators.
   ]
 ]
 
-@section{Evaluating Terms}
-
-A @deftech{term} is defined recursively as a literal value or a serializable
-composite of sub-terms. For example, the symbol
-
-@racketblock['a-symbol]
-
-and the number
-
-@racketblock[123]
-
-are terms because they are literal values. The structures
-
-@racketblock[
-  '(a-symbol 123)
-]
-
-and
-
-@racketblock[
-  #hasheq((a-symbol . 123))
-]
-
-are also terms because they are @racket[read]/@racket[write]able composites of
-literals.
-
-A @deftech{stepper} is a function that maps one @tech{term} to another. For
-example,
-
-@racketblock[
-  (case-lambda
-    [(a) 1]
-    [(b) 2]
-    [else 0])
-]
-
-maps any term to a number between @racket[0] and @racket[2]. Similarly,
-
-@racketblock[
-  (match-lambda
-    [1 'a]
-    [2 'b]
-    [_ 'z])
-]
-
-maps any term to @racket['a], @racket['b], or @racket['z]. A more realistic
-example is @racket[values], which maps every term to itself; or the function
-
-@racketblock[
-  (define step
-    (match-lambda
-      [(list (? term? e1) (? term? e2)) #:when (not (value? e1))
-       (list (step e1) e2)]
-      [(list (? value? v1) (? term? e2?)) #:when (not (value? e2))
-       (list v1 (step e2))]
-      [(list `(λ ,(? symbol? x11) ,(? term? e12)) (? value? v2))
-       (substitute e12 x11 v2)]
-      [_ 'stuck]))
-]
-
-a small-@tech{stepper} for the untyped lambda calculus.
-
 @section{Communication-based Concurrency}
 
 Neuron uses a concurrency model of lightweight processes communicating over
@@ -294,29 +232,9 @@ methods.
 ]
 
 @tech{Steppers} can be used as @tech{command handlers}, enabling
-@tech{term}-based DSLs for out-of-band @tech{process} control.
+@tech{term}-based DSLs for privileged control.
 
-@subsection{Synchronous Exchange}
-
-Processes can also communicate by passing values through their
-@tech{exchangers}. Most of the @tech{process} constructors provided by Neuron
-are designed for channel-based data flow networking, hence the distinction
-between ``in-band'' mediated exchanges versus ``out-of-band'' command
-invocations.
-
-The @racket[server] command creates a @tech{process} that follows the
-request-reply pattern for in-band exchanges. This is useful for providing
-in-band access to the @tech{command handler} of a @tech{process}.
-
-@examples[
-  #:eval neuron-evaluator
-  #:label "Example:"
-  (define π (start (process deadlock) #:command add1))
-  (define cmd (server π))
-  (call cmd 1)
-]
-
-@subsection{Data Flow Control}
+@subsection[#:tag "guide:Data Flow"]{Data Flow}
 
 Processes can also be combined to provide restricted or revocable access to
 others.
@@ -357,7 +275,18 @@ others.
    (sync (evt-set A B #:then void))
 ]
 
-@; @subsection{Information Flow Control}
+@subsection{Information Flow Control}
+
+The @racket[server] construct can be used to lift @tech{command handlers} onto
+the network.
+
+@examples[
+  #:eval neuron-evaluator
+  #:label "Example:"
+  (define π (start (process deadlock) #:command add1))
+  (define cmd (server π))
+  (call cmd 1)
+]
 
 @subsection{Working with Threads}
 
@@ -386,3 +315,65 @@ Processes and @rtech{threads} can be combined.
   (for ([i 10])
     (give π i))
 ]
+
+@section[#:tag "guide:Evaluation"]{Evaluation}
+
+A @deftech{term} is defined recursively as a literal value or a serializable
+composite of sub-terms. For example, the symbol
+
+@racketblock['a-symbol]
+
+and the number
+
+@racketblock[123]
+
+are terms because they are literal values. The structures
+
+@racketblock[
+  '(a-symbol 123)
+]
+
+and
+
+@racketblock[
+  #hasheq((a-symbol . 123))
+]
+
+are also terms because they are @racket[read]/@racket[write]able composites of
+literals.
+
+A @deftech{stepper} is a function that maps one @tech{term} to another. For
+example,
+
+@racketblock[
+  (case-lambda
+    [(a) 1]
+    [(b) 2]
+    [else 0])
+]
+
+maps any term to a number between @racket[0] and @racket[2]. Similarly,
+
+@racketblock[
+  (match-lambda
+    [1 'a]
+    [2 'b]
+    [_ 'z])
+]
+
+maps any term to @racket['a], @racket['b], or @racket['z]. A more realistic
+example is @racket[values], which maps every term to itself; or the function
+
+@racketblock[
+  (define step
+    (match-lambda
+      [(list (? term? e1) (? term? e2)) #:when (not (value? e1))
+       (list (step e1) e2)]
+      [(list (? value? v1) (? term? e2?)) #:when (not (value? e2))
+       (list v1 (step e2))]
+      [(list `(λ ,(? symbol? x11) ,(? term? e12)) (? value? v2))
+       (substitute e12 x11 v2)]
+      [_ 'stuck]))
+]
+
+a small-@tech{stepper} for the untyped lambda calculus.
