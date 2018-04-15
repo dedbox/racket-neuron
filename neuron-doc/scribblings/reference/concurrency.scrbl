@@ -511,7 +511,7 @@ Processes are created explicitly by the @racket[process] function. Use
 
 }
 
-@section{Inter-Process Communication}
+@section{Messaging}
 
 @(defmodule neuron/process/messaging)
 
@@ -561,6 +561,19 @@ Processes are created explicitly by the @racket[process] function. Use
 @defproc[(forward-from [π process?]) void?]{
 
   Emits a value received from @var[π].
+
+}
+
+@defproc[(filter-to [π process?] [#:with proc (-> any/c any/c)]) void?]{
+
+  Takes a value, applies @var[proc] to it, and gives the result to @var[π].
+
+}
+
+@defproc[(filter-from [π process?]) void?]{
+
+  Receives a value from @var[π], applies @var[proc] to it, and emits the
+  result.
 
 }
 
@@ -622,6 +635,22 @@ Processes are created explicitly by the @racket[process] function. Use
 
 }
 
+@defproc[(filter-to-evt [π process?] [#:with proc (-> any/c any/c)]) evt?]{
+
+  Returns a constant @rtech{synchronizable event} that becomes @rtech{ready
+  for synchronization} when @racket[(filter-to #,(var π) #:with #,(var proc))]
+  would not block.
+
+}
+
+@defproc[(filter-from-evt [π process?] [#:with proc (-> any/c any/c)]) evt?]{
+
+  Returns a constant @rtech{synchronizable event} that becomes @rtech{ready
+  for synchronization} when @racket[(filter-from #,(var π) #:with #,(var
+  proc))] would not block.
+
+}
+
 @defproc[(couple-evt [π1 process?] [π2 process?]) void?]{
 
   Returns a constant @rtech{synchronizable event} that becomes @rtech{ready
@@ -630,7 +659,7 @@ Processes are created explicitly by the @racket[process] function. Use
 
 }
 
-@section{Process Control Flow}
+@section{Process Control}
 
 @(defmodule neuron/process/control)
 

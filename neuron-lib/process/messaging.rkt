@@ -16,6 +16,8 @@
   [call (-> process? any/c any/c)]
   [forward-to (-> process? void?)]
   [forward-from (-> process? void?)]
+  [filter-to (-> process? #:with (-> any/c any/c) void?)]
+  [filter-from (-> process? #:with (-> any/c any/c) void?)]
   [couple
    (->* (process? process?)
         (exchanger?)
@@ -26,6 +28,8 @@
   [recv-evt (-> process? evt?)]
   [forward-to-evt (-> process? evt?)]
   [forward-from-evt (-> process? evt?)]
+  [filter-to-evt (-> process? #:with (-> any/c any/c) evt?)]
+  [filter-from-evt (-> process? #:with (-> any/c any/c) evt?)]
   [couple-evt
    (->* (process? process?)
         (exchanger?)
@@ -54,6 +58,12 @@
 
 (define (forward-from π)
   (sync (forward-from-evt π)))
+
+(define (filter-to π #:with proc)
+  (sync (filter-to-evt π #:with proc)))
+
+(define (filter-from π #:with proc)
+  (sync (filter-from-evt π #:with proc)))
 
 (define (couple π1 π2 [ex (make-exchanger)])
   (sync (couple-evt π1 π2 ex)))
@@ -90,6 +100,18 @@
   (forwarder-evt
    (process-tx (current-process))
    (process-tx π)))
+
+(define (filter-to-evt π #:with proc)
+  (filterer-evt
+   (process-rx (current-process))
+   (process-rx π)
+   #:with proc))
+
+(define (filter-from-evt π #:with proc)
+  (filterer-evt
+   (process-tx (current-process))
+   (process-tx π)
+   #:with proc))
 
 (define (couple-evt π1 π2 [ex (make-exchanger)])
   (coupler-evt
@@ -239,6 +261,20 @@
     (define π1 (process (λ () (emit 1))))
     (define π2 (process (λ () (sync (forward-from-evt π1)))))
     (check = (recv π2) 1)
+    (check-pred eof-object? (recv π2)))
+
+  (test-case
+    "filter-to-evt"
+    (define π1 (process (λ () (emit (take)))))
+    (define π2 (process (λ () (sync (filter-to-evt π1 #:with add1)))))
+    (check-true (give π2 1))
+    (check = (recv π1) 2))
+
+  (test-case
+    "filter-from-evt"
+    (define π1 (process (λ () (emit 1))))
+    (define π2 (process (λ () (sync (filter-from-evt π1 #:with add1)))))
+    (check = (recv π2) 2)
     (check-pred eof-object? (recv π2)))
 
   (test-case
