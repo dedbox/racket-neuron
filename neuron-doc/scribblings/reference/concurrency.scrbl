@@ -4,56 +4,42 @@
 
 @title{Concurrency}
 
-A @deftech{process} is a @rtech{thread}-like concurrency primitive. Processes
-are made from @rtech{threads} by replacing the @seclink["threadmbox" #:doc
-'(lib "scribblings/reference/reference.scrbl")]{thread mailbox} with a few
-other features:
+@section{Syntax}
 
-@itemlist[
-  @item{A pair of @tech{exchangers}: one for transmitting and another for
-    receiving.}
-  @item{An out-of-band @tech{command handler}.}
-  @item{An @deftech{on-stop hook} that is called when a process ends
-    gracefully, but not when it dies abruptly.}
-  @item{An @deftech{on-dead hook} that is called unconditionally when a
-    process terminates.}
-]
+@(defmodule neuron/syntax)
 
-A process can be applied as a procedure, which invokes its @deftech{command
-handler}, or @deftech{handler}. The @tech{command handler} is a list of
-procedures, and the result of a command is the same as the result of the first
-procedure in the list to return a value other than @racket[unhandled]. If
-every procedure returns @racket[unhandled] or the list is empty,
-@racket[unhandled-command] is raised.
+@defform[(forever body ...)]{
 
-@examples[
-  #:eval neuron-evaluator
-  #:label #f
-  (define π
-    (start
-     (process deadlock)
-     #:command (bind ([A 1]
-                      [B (λ _ 2)])
-                     #:else unhandled)))
-  (π 'A)
-  ((π 'B) 5)
-  (eval:error (π '(x y)))
-]
+  Evaluates @var[body]s repeatedly.
 
-A process can be used as a @rtech{synchronizable event}. A process is
-@rtech{ready for synchronization} when @racket[dead?] would return
-@racket[#t]. The synchronization result is the process itself.
+}
 
-Unhandled exceptions are fatal. Attempting to synchronize a process killed by
-an unhandled exception re-raises the exception.
+@defform[(while expr body ...)]{
 
-@examples[
-  #:eval neuron-evaluator
-  #:label #f
-  (eval:error (sync (process (λ () (raise 'VAL)))))
-]
+  Evaluates @var[body]s repeatedly for as long as @var[expr] evaluates to
+  @racket[#t].
 
-@section{Mediated Exchange}
+}
+
+@defform[(until expr body ...)]{
+
+  Evaluates @var[body]s repeatedly for as long as @var[expr] evalutes to
+  @racket[#f].
+
+}
+
+@defform[(apply-values proc expr)]{
+
+  Evaluates @var[expr] and then applies @var[proc] to the resulting values.
+
+  @examples[
+    #:eval neuron-evaluator
+    #:label "Example:"
+    (apply-values list (values 1 2 3))
+  ]
+}
+
+@section{Exchanger}
 
 @margin-note{@secref{The Neuron Technical Report} explains the difference
 between exchangers and @rtech{channels}.}
@@ -235,42 +221,7 @@ with precise control flow semantics can be defined.
 
 }
 
-@section{Control Flow}
-
-@(defmodule neuron/syntax)
-
-@defform[(forever body ...)]{
-
-  Evaluates @var[body]s repeatedly.
-
-}
-
-@defform[(while expr body ...)]{
-
-  Evaluates @var[body]s repeatedly for as long as @var[expr] evaluates to
-  @racket[#t].
-
-}
-
-@defform[(until expr body ...)]{
-
-  Evaluates @var[body]s repeatedly for as long as @var[expr] evalutes to
-  @racket[#f].
-
-}
-
-@defform[(apply-values proc expr)]{
-
-  Evaluates @var[expr] and then applies @var[proc] to the resulting values.
-
-  @examples[
-    #:eval neuron-evaluator
-    #:label "Example:"
-    (apply-values list (values 1 2 3))
-  ]
-}
-
-@section{Composite Events}
+@section{Event}
 
 @(defmodule neuron/event)
 
@@ -368,9 +319,58 @@ with precise control flow semantics can be defined.
   ]
 }
 
-@section{Starting and Stopping Processes}
+@section{Process}
 
 @(defmodule neuron/process)
+
+A @deftech{process} is a @rtech{thread}-like concurrency primitive. Processes
+are made from @rtech{threads} by replacing the @seclink["threadmbox" #:doc
+'(lib "scribblings/reference/reference.scrbl")]{thread mailbox} with a few
+other features:
+
+@itemlist[
+  @item{A pair of @tech{exchangers}: one for transmitting and another for
+    receiving.}
+  @item{An out-of-band @tech{command handler}.}
+  @item{An @deftech{on-stop hook} that is called when a process ends
+    gracefully, but not when it dies abruptly.}
+  @item{An @deftech{on-dead hook} that is called unconditionally when a
+    process terminates.}
+]
+
+A process can be applied as a procedure, which invokes its @deftech{command
+handler}, or @deftech{handler}. The @tech{command handler} is a list of
+procedures, and the result of a command is the same as the result of the first
+procedure in the list to return a value other than @racket[unhandled]. If
+every procedure returns @racket[unhandled] or the list is empty,
+@racket[unhandled-command] is raised.
+
+@examples[
+  #:eval neuron-evaluator
+  #:label #f
+  (define π
+    (start
+     (process deadlock)
+     #:command (bind ([A 1]
+                      [B (λ _ 2)])
+                     #:else unhandled)))
+  (π 'A)
+  ((π 'B) 5)
+  (eval:error (π '(x y)))
+]
+
+A process can be used as a @rtech{synchronizable event}. A process is
+@rtech{ready for synchronization} when @racket[dead?] would return
+@racket[#t]. The synchronization result is the process itself.
+
+Unhandled exceptions are fatal. Attempting to synchronize a process killed by
+an unhandled exception re-raises the exception.
+
+@examples[
+  #:eval neuron-evaluator
+  #:label #f
+  (eval:error (sync (process (λ () (raise 'VAL)))))
+]
 
 Processes are created explicitly by the @racket[process] function. Use
 @racket[start] to install hooks and handlers.
@@ -570,7 +570,7 @@ Processes are created explicitly by the @racket[process] function. Use
 
 }
 
-@defproc[(filter-from [π process?]) void?]{
+@defproc[(filter-from [π process?] [#:with proc (-> any/c any/c)]) void?]{
 
   Receives a value from @var[π], applies @var[proc] to it, and emits the
   result.
@@ -659,7 +659,7 @@ Processes are created explicitly by the @racket[process] function. Use
 
 }
 
-@section{Process Control}
+@section{Control}
 
 @(defmodule neuron/process/control)
 
@@ -776,24 +776,26 @@ Processes are created explicitly by the @racket[process] function. Use
       otherwise.}
   ]
 
-  @; @examples[
-  @;   #:eval neuron-evaluator
-  @;   #:label "Example:"
-  @;   (define times
-  @;     (let ([N -1])
-  @;       (service
-  @;        (λ _ (set! N (add1 N)) N)
-  @;        #:on-drop (λ (k _) (displayln `(STOP ,k))))))
-  @;   (for ([i 10])
-  @;     (times `(add ,(server (curry * i)))))
-  @;   (for/list ([i 10])
-  @;     (call times (list i 3)))
-  @;   (for ([i 5] #:when (even? i))
-  @;     (times `(drop ,i)))
-  @;   (for/list ([i 10])
-  @;     (call times (list i 4)))
-  @;   (stop times)
-  @; ]
+  @examples[
+    #:eval neuron-evaluator
+    #:label "Example:"
+    (define times
+      (let ([N -1])
+        (service
+         (λ _ (set! N (add1 N)) N)
+         #:on-drop (λ (k _) (displayln `(STOP ,k))))))
+    (for ([i 10])
+      (times `(add ,(server (curry * i)))))
+    (writeln
+     (for/list ([i 10])
+       (call times (list i 3))))
+    (for ([i 10] #:when (even? i))
+      (times `(drop ,i)))
+    (writeln
+     (for/list ([i 10] #:when (odd? i))
+       (call times (list i 4))))
+    (stop times)
+  ]
 }
 
 @defproc[(simulator [proc (-> real? any)] [#:rate rate real? 10]) process?]{
