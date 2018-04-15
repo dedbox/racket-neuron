@@ -38,4 +38,4 @@ script:
 after_success:
  - raco setup --check-pkg-deps -p neuron
  - raco pkg install --deps search-auto cover cover-coveralls
- - raco cover -b -f coveralls -d $TRAVIS_BUILD_DIR/coverage .
+ - raco cover -b -f coveralls -d $TRAVIS_BUILD_DIR/coverage ./neuron-lib
