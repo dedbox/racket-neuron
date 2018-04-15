@@ -15,9 +15,19 @@
 (provide
  (contract-out
   [server (-> (-> any/c any/c) process?)]
-  [proxy (-> process? process?)]
-  [proxy-to (-> process? process?)]
-  [proxy-from (-> process? process?)]
+  [proxy
+   (->* (process?)
+        (#:filter-to (or/c (-> any/c any/c) #f)
+         #:filter-from (or/c (-> any/c any/c) #f))
+        process?)]
+  [proxy-to
+   (->* (process?)
+        (#:with (or/c (-> any/c any/c) #f))
+        process?)]
+  [proxy-from
+   (->* (process?)
+        (#:with (or/c (-> any/c any/c) #f))
+        process?)]
   [sink (-> (-> any/c any) process?)]
   [source (-> (-> any/c) process?)]
   [stream (-> process? process? process?)]
@@ -28,12 +38,13 @@
   [simulator (->* ((-> real? any)) (#:rate real?) process?)]
   [pipe (-> process? process? ... process?)]
   [bridge (-> process? process? process?)]
-  [managed (->* (process?)
-                (#:pre-take-eof (-> process? any)
-                 #:post-take-eof (-> process? any)
-                 #:pre-emit-eof (-> process? any)
-                 #:post-emit-eof (-> process? any))
-                process?)]
+  [managed
+   (->* (process?)
+        (#:pre-take-eof (-> process? any)
+         #:post-take-eof (-> process? any)
+         #:pre-emit-eof (-> process? any)
+         #:post-emit-eof (-> process? any))
+        process?)]
   [shutdown (-> process? void?)]
   [shutdown-evt (-> process? evt?)]))
 
@@ -42,35 +53,40 @@
 (define (server proc)
   (process (λ () (forever (emit (proc (take)))))))
 
-(define (proxy π)
+(define (proxy π #:filter-to [to-proc #f] #:filter-from [from-proc #f])
   (start
    (process
     (λ ()
+      (define to-evt
+        (if to-proc (filter-to-evt π #:with to-proc) (forward-to-evt π)))
+      (define from-evt
+        (if from-proc (filter-from-evt π #:with from-proc) (forward-from-evt π)))
       (sync
        (choice-evt
-        (evt-loop (λ _ (forward-to-evt π)))
-        (evt-loop (λ _ (forward-from-evt π)))
+        (evt-loop (λ _ to-evt))
+        (evt-loop (λ _ from-evt))
         (handle-evt π die)))))
    #:on-stop (λ () (stop π))))
 
-(define (proxy-to π)
+(define (proxy-to π #:with [proc #f])
   (start
    (process
     (λ ()
-      (sync
-       (choice-evt
-        (evt-loop (λ _ (forward-to-evt π)))
-        (handle-evt π die)))))
+      (define evt (if proc (filter-to-evt π #:with proc) (forward-to-evt π)))
+      (sync (choice-evt
+             (evt-loop (λ _ evt))
+             (handle-evt π die)))))
    #:on-stop (λ () (stop π))))
 
-(define (proxy-from π)
+(define (proxy-from π #:with [proc #f])
   (start
    (process
     (λ ()
-      (sync
-       (choice-evt
-        (evt-loop (λ _ (forward-from-evt π)))
-        (handle-evt π die)))))
+      (define evt
+        (if proc (filter-from-evt π #:with proc) (forward-from-evt π)))
+      (sync (choice-evt
+             (evt-loop (λ _ evt))
+             (handle-evt π die)))))
    #:on-stop (λ () (stop π))))
 
 (define (sink proc)
@@ -381,6 +397,13 @@
     (check-true (dead? π*)))
 
   (test-case
+    "proxy with #:filter-to and #:filter-from"
+    (define π (process (λ () (emit 4) (check = (take) 9))))
+    (define π* (proxy π #:filter-to sub1 #:filter-from (curry * 3)))
+    (check = (recv π*) 12)
+    (check-true (give π* 10)))
+
+  (test-case
     "A proxy-to forwards to π."
     (define π (server add1))
     (define to-π (proxy-to π))
@@ -419,6 +442,11 @@
     (check-pred dead? to-π))
 
   (test-case
+    "proxy-to #:with filter"
+    (define π (process (λ () (check = (take) 6))))
+    (check-true (give (proxy-to π #:with (curry * 3)) 2)))
+
+  (test-case
     "A proxy-from does not forward to π."
     (define π (server add1))
     (define from-π (proxy-from π))
@@ -453,6 +481,11 @@
     (check-pred dead? π)
     (wait from-π)
     (check-pred dead? from-π))
+
+  (test-case
+    "proxy-from #:with filter"
+    (define π (process (λ () (emit 3))))
+    (check = (recv (proxy-from π #:with (curry * 4))) 12))
 
   (test-case
     "A sink applies proc to each value taken."

@@ -676,10 +676,16 @@ Processes are created explicitly by the @racket[process] function. Use
   ]
 }
 
-@defproc[(proxy [π process?]) process?]{
+@defproc[
+  (proxy [π process?]
+         [#:filter-to to-proc (or/c (-> any/c any/c) #f) #f]
+         [#:filter-from from-proc (or/c (-> any/c any/c) #f) #f])
+  process?
+]{
 
-  Forwards values to and from @var[π]. Stops @var[π] when it stops. Dies when
-  @var[π] dies.
+  Forwards values to and from @var[π]. Filters taken values with @var[to-proc]
+  when not @racket[#f]. Filters emitted values with @var[from-proc] when not
+  @racket[#f]. Stops @var[π] when it stops. Dies when @var[π] dies.
 
   @examples[
     #:eval neuron-evaluator
@@ -688,17 +694,25 @@ Processes are created explicitly by the @racket[process] function. Use
   ]
 }
 
-@defproc[(proxy-to [π process?]) process?]{
+@defproc[
+  (proxy-to [π process?]
+            [#:with proc (or/c (-> any/c any/c) #f) #f])
+  process?
+]{
 
-  Gives all values taken to @var[π]. Stops @var[π] when it stops. Dies when
-  @var[π] dies.
+  Gives all values taken to @var[π]. Filters taken values with @var[proc] when
+  not @racket[#f]. Stops @var[π] when it stops. Dies when @var[π] dies.
 
 }
 
-@defproc[(proxy-from [π process?]) process?]{
+@defproc[
+  (proxy-from [π process?]
+              [#:with proc (or/c (-> any/c any/c) #f) #f])
+  process?
+]{
 
-  Emits all values emitted by @var[π]. Stops @var[π] when it stops. Dies when
-  @var[π] dies.
+  Emits all values emitted by @var[π]. Filters emitted values with @var[proc]
+  when not @racket[#f]. Stops @var[π] when it stops. Dies when @var[π] dies.
 
 }
 
