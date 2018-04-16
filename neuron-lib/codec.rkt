@@ -1,11 +1,11 @@
 #lang racket/base
 
 (require
- neuron/data-flow/socket
  neuron/evaluation
  neuron/process
  neuron/process/control
  neuron/process/messaging
+ neuron/socket
  neuron/syntax
  json
  racket/contract/base

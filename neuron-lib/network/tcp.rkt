@@ -1,13 +1,13 @@
 #lang racket/base
 
 (require
- neuron/data-flow/codec
- neuron/data-flow/socket
+ neuron/codec
  neuron/evaluation
  neuron/event
  neuron/process
  neuron/process/control
  neuron/process/messaging
+ neuron/socket
  neuron/syntax
  racket/contract/base
  racket/function

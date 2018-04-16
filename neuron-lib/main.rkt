@@ -3,12 +3,14 @@
 (require neuron/reprovide)
 
 (reprovide
- neuron/data-flow
+ neuron/codec
  neuron/evaluation
  neuron/event
  neuron/exchanger
+ neuron/network/tcp
  neuron/process
  neuron/process/control
  neuron/process/exchanger
  neuron/process/messaging
+ neuron/socket
  neuron/syntax)

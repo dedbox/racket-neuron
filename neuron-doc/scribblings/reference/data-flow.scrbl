@@ -4,9 +4,9 @@
 
 @title{Data Flow}
 
-@(defmodule neuron/data-flow #:packages ("neuron"))
+@section{Socket}
 
-@section{Serial Communication}
+@(defmodule neuron/socket)
 
 A @deftech{socket} is the local end of a bi-directional serial communications
 channel. Each socket holds an @rtech{input port} and an @rtech{output port}.
@@ -86,9 +86,9 @@ is closed immediately.
   @racket[exists-flag].
 }
 
-@section{Serialization}
+@section{Codec}
 
-@subsection{Codecs}
+@(defmodule neuron/codec)
 
 A @deftech{codec} is a @racket[stream] that uses a @tech{socket} to exchange
 serializable values with remote agents. The @racket[sink] is called an
@@ -322,7 +322,11 @@ the following procedures:
   ]
 }
 
-@section{Networking}
+@section{Network}
+
+@subsection{TCP}
+
+@(defmodule neuron/network/tcp)
 
 A @deftech{TCP socket} is a @tech{socket} with a TCP address.
 
