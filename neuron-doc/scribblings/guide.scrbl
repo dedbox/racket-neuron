@@ -236,8 +236,7 @@ methods.
 
 @subsection[#:tag "guide:Data Flow"]{Data Flow}
 
-Processes can also be combined to provide restricted or revocable access to
-others.
+Processes can be combined to provide restricted or revocable access to others.
 
 @examples[
   #:eval neuron-evaluator
@@ -273,19 +272,6 @@ others.
        (give A) (wait A) (code:comment "A reads dead π-ref")
        (displayln `(IN-B ,(recv π))))))
    (sync (evt-set A B #:then void))
-]
-
-@subsection{Information Flow Control}
-
-The @racket[server] construct can be used to lift @tech{command handlers} onto
-the network.
-
-@examples[
-  #:eval neuron-evaluator
-  #:label "Example:"
-  (define π (start (process deadlock) #:command add1))
-  (define cmd (server π))
-  (call cmd 1)
 ]
 
 @subsection{Working with Threads}
