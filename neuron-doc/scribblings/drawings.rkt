@@ -15,6 +15,7 @@
 
 (define FONT-SIZE 16)
 (define BIG-FONT-SIZE 30)
+(define MIN-CHANNEL-WIDTH 70)
 (define MIN-EDGE-LEN 60)
 
 ;; (define full-width-style
@@ -94,8 +95,8 @@
 
 (define (channel content)
   (define lbl (val content))
-  (when (< (pict-width lbl) 60)
-    (set! lbl (pad lbl 0 (/ (- 60 (pict-width lbl)) 2))))
+  (when (< (pict-width lbl) MIN-CHANNEL-WIDTH)
+    (set! lbl (pad lbl 0 (/ (- MIN-CHANNEL-WIDTH (pict-width lbl)) 2))))
   (define w (pict-width lbl))
   (define h (pict-height lbl))
   (set! lbl (cc-superimpose
@@ -144,22 +145,22 @@
 
 (define cdots (pad (big "···")))
 
-(define (--> lhs str rhs
-             [lhs-part #f] [lhs-find #f]
-             [rhs-part #f] [rhs-find #f])
-  (define lbl (if str (pad (label str) 5 15 2 5) (blank)))
-  (define lbl-width (pict-width lbl))
-  (define lhs-pict (pict-convert lhs))
-  (define rhs-pict (pict-convert rhs))
-  (define edge-len (max (+ lbl-width 20) MIN-EDGE-LEN))
-  (define pict (hc-append edge-len lhs-pict rhs-pict))
+(define (--> content
+             lhs lhs-offset lhs-part lhs-find
+             rhs rhs-offset rhs-part rhs-find)
+  (define label-pict (pad (or content (blank)) 5 15 2 5))
+  (define label-width (pict-width label-pict))
+  (define lhs* (apply offset (cons (pict-convert lhs) lhs-offset)))
+  (define rhs* (apply offset (cons (pict-convert rhs) rhs-offset)))
+  (define edge-len (max (+ label-width 20) MIN-EDGE-LEN))
+  (define pict (hc-append edge-len lhs* rhs*))
   (pin-arrow-line
    10 pict
-   (if lhs-part (lhs-part lhs) lhs-pict)
+   (if lhs-part (lhs-part lhs) (~offset-target lhs*))
    (or lhs-find rc-find)
-   (if rhs-part (rhs-part rhs) rhs-pict)
+   (if rhs-part (rhs-part rhs) (~offset-target rhs*))
    (or rhs-find lc-find)
-   #:label lbl))
+   #:label label-pict))
 
 (struct ~offset
   (target x y)
@@ -177,25 +178,30 @@
       (list* (car xs) y (intersperse y (cdr xs)))))
 
 (define (seq . picts)
-  (apply (curry hc-append 20)
+  (apply (curry hc-append 10)
          (intersperse (big ";") picts)))
-
-(define row (curry hc-append 60))
 
 (struct ~exchanger
   (name ctrl data)
   #:property prop:pict-convertible
   (match-lambda
     [(~exchanger name ctrl data)
-     (vc-append (pad name 10 10 5 10) (pad ctrl 0 10) (pad data 0 10 10 10))]))
+     (define body
+       (vc-append (pad name 10 10 5 10) (pad ctrl 0 10) (pad data 0 10 10 10)))
+     (cc-superimpose
+      (filled-rounded-rectangle
+       (pict-width body)
+       (pict-height body)
+       -0.125 #:color "white")
+      body)]))
 
-(define (exchanger [name "ex"] [ctrl #f] [data #f])
+(define (exchanger [name "ex"] [ctrl "ctrl"] [data "data"])
   (~exchanger
    (label name)
-   (draw (or ctrl (channel "ctrl")))
-   (draw (or data (channel "data")))))
+   (draw (channel ctrl))
+   (draw (channel data))))
 
-(define (exchanger* [name "ex"])
+(define (ref name)
   (define body (val name))
   (cc-superimpose
    (filled-rounded-rectangle
@@ -280,35 +286,45 @@
 ;; Channel Operations
 
 (define (ch-put v ch)
-  (--> (val v) "put" (channel ch)))
+  (--> (label "put")
+       (val v) '(0 0) #f #f
+       (channel ch) '(0 0) #f #f))
 
 (define (ch-get ch v)
-  (--> (channel ch) "get" (val v)))
+  (--> (label "get")
+       (channel ch) '(0 0) #f #f
+       (val v) '(0 0) #f #f))
 
 ;; Exchanger Operations
 
+(define (offer* ex1 ex2 [ofs '(0 -5)])
+  (--> (label "offer")
+       ex1 ofs #f #f
+       ex2 '(0 0) ~exchanger-ctrl #f))
+
+(define (accept* ex ex* [ofs '(0 -5)])
+  (--> (label "accept")
+      ex '(0 0) ~exchanger-ctrl #f
+      ex* ofs #f #f))
+
+(define (put* v ex [ofs '(0 52)])
+  (--> (label "put")
+       v ofs #f #f
+       ex '(0 0) ~exchanger-data #f))
+
+(define (get* ex v [ofs '(0 52)])
+  (--> (label "get")
+       ex '(0 0) ~exchanger-data #f
+       v ofs #f #f))
+
 (define (offer ex1 #:to ex2)
-  (--> (offset (exchanger* ex1) 0 -5) "offer" (exchanger ex2)
-       ~offset-target #f ~exchanger-ctrl))
+  (offer* (ref ex1) (exchanger ex2)))
 
 (define (accept #:from ex ex*)
-  (--> (exchanger ex) "accept" (offset (exchanger* ex*) 0 -5)
-       ~exchanger-ctrl #f ~offset-target))
+  (accept* (exchanger ex) (ref ex*)))
 
 (define (put v #:into ex)
-  (--> (offset (val v) 0 52) "put" (exchanger ex)
-       ~offset-target #f ~exchanger-data))
+  (put* (val v) (exchanger ex)))
 
 (define (get #:from ex v)
-  (--> (exchanger ex) "get" (offset (val v) 0 52)
-       ~exchanger-data #f ~offset-target))
-
-;; (define (accept* #:from name ctrl-name data-name pict)
-;;   (define ex-ctrl (channel 35 25 ctrl-name))
-;;   (define ex-data (channel 35 25 data-name))
-;;   (define ex (exchanger name ex-ctrl ex-data))
-;;   (edge
-;;    (hc-append 80 ex pict)
-;;    ex-ctrl rc-find
-;;    pict lc-find
-;;    #:label (text "accept" null 14)))
+  (get* (exchanger ex) (val v)))

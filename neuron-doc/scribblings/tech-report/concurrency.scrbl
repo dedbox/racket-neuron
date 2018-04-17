@@ -59,28 +59,24 @@ sides have committed to the exchange.
 An exchanger contains a control channel and a data channel.
 
 @(:define/picts
-  [(offer ex1 #:to ex2)]
-  (:offer "ex1" #:to "ex2"))
+  [(offer ex1 #:to ex2)] (:offer "ex1" #:to "ex2"))
 
 A thread can offer one exchanger to another by putting the first into the
 control channel of the second.
 
 @(:define/picts
-  [(accept #:from ex) (code:comment "ex*")]
-  (:accept #:from "ex" "ex*"))
+  [(accept #:from ex) (code:comment "ex*")] (:accept #:from "ex" "ex*"))
 
 A thread can accept an exchanger by getting it from the control channel of
 another.
 
 @(:define/picts
-  [(put v #:into ex)]
-  (:put "v" #:into "ex"))
+  [(put v #:into ex)] (:put "v" #:into "ex"))
 
 A thread can put a value into the data channel of an exchanger.
 
 @(:define/picts
-  [(get #:from ex) (code:comment "v")]
-  (:get #:from "ex" "v"))
+  [(get #:from ex) (code:comment "v")] (:get #:from "ex" "v"))
 
 A thread can get a value from the data channel of an exchanger.
 
@@ -89,10 +85,8 @@ A thread can get a value from the data channel of an exchanger.
 A process has two exchangers: one for transmitting and another for receiving.
 
 @(:define*/picts
-  ([(giver tx rx v)]
-   (:seq (:offer "tx" #:to "rx") (:put "v" #:into "tx")))
-  ([(taker rx)]
-   (:seq (:accept #:from "rx""tx") (:get #:from "tx" "v"))))
+  ([(giver tx rx v)] (:seq (:offer "tx" #:to "rx") (:put "v" #:into "tx")))
+  ([(taker rx)] (:seq (:accept #:from "rx" "tx") (:get #:from "tx" "v"))))
 
 In a give-take exchange, a giver offers its transmitting exchanger to the
 receiving exchanger of a taker. After the taker commits to the exchange by
@@ -100,10 +94,8 @@ accepting the offer, a single value flows through the transmitting exchanger
 from giver to taker.
 
 @(:define*/picts
-  ([(receiver rx tx)]
-   (:seq (:offer "rx" #:to "tx") (:get #:from "rx" "v")))
-  ([(emitter tx v)]
-   (:seq (:accept #:from "tx" "rx") (:put "v" #:into "rx"))))
+  ([(receiver rx tx)] (:seq (:offer "rx" #:to "tx") (:get #:from "rx" "v")))
+  ([(emitter tx v)] (:seq (:accept #:from "tx" "rx") (:put "v" #:into "rx"))))
 
 In a receive-emit exchange, a receiver offers its receiving exchanger to the
 transmitting exchanger of an emitter. After the emitter commits to the
@@ -117,11 +109,17 @@ exchanger from emitter to receiver.
 In a forwarding exchange, a mediator accepts an exchanger from one exchanger
 and then offers it to another.
 
-@; @; @(d:code-pict-def
-@; @;   @racket[(filterer ex1 ex2 #:with proc)]
-@; @;   (d:seq
-@; @;    (d:accept* #:from "ex1" "ctrl1" "data1" (d:exchanger))
-@; @;    (d:offer* "ex*" "))
+@(:define/picts
+  [(filterer ex1 ex2 #:with proc)]
+  (:seq (:accept* (:exchanger "ex1" "ctrl1" "data1") (:exchanger "ex"))
+        (:offer* (:exchanger "ex*" "ctrl" "data*")
+                 (:exchanger "ex2" "ctrl2" "data2"))))
+
+A filtering exchange is a forwarding exchange with a filtering procedure. A
+mediator accepts an exchanger, wraps its data channel in an impersonator that
+applies the filtering procedure, then offers the modified exchanger to another.
+
+The filter procedure is applied by the thread that uses the impersonator.
 
 @(:define/picts
   [(coupler rx tx [ex (make-exchanger)])]
@@ -148,6 +146,20 @@ Data and control flow from the giver to the taker. Until the taker is ready to
 accept, the forwarder blocks to offer and the giver blocks to put, preventing
 the giver from prematurely synchronizing on the forwarder.
 
+@subsubsection[#:style '(unnumbered)]{From giver to taker with filter}
+
+@(:named-seqs
+  [@:val{giver} (:offer "tx" #:to "ex1") (:put "v" #:into "tx")]
+  [@:val{filterer}
+   (:accept* (:exchanger "ex1" "ctrl1" "data1") (:exchanger "tx"))
+   (:offer* (:exchanger "tx*" "ctrl" "data*")
+            (:exchanger "ex2" "ctrl2" "data2"))]
+  [@:val{taker}
+   (:accept* (:exchanger "ex2" "ctrl2" "data2") (:ref "tx*"))
+   (:get* (:exchanger "tx*" "ctrl" "data*") (:val "(proc v)"))])
+
+In a give-take exchange, the filter is applied by the taker on get.
+
 @subsubsection[#:style '(unnumbered)]{From emitter to receiver}
 
 @(:named-seqs
@@ -165,6 +177,20 @@ Data flows from emitter to receiver, but control flows in the opposite
 direction. Until the emitter is ready to accept, the forwarder blocks to offer
 and the receiver blocks to get, preventing the emitter from prematurely
 synchronizing on the forwarder.
+
+@subsubsection[#:style '(unnumbered)]{From emitter to receiver with filter}
+
+@(:named-seqs
+  [@:val{receiver} (:offer "rx" #:to "ex1") (:get #:from "rx" "(proc v)")]
+  [@:val{filterer}
+   (:accept* (:exchanger "ex1" "ctrl1" "data1") (:exchanger "rx"))
+   (:offer* (:exchanger "rx*" "ctrl" "data*")
+            (:exchanger "ex2" "ctrl2" "data2"))]
+  [@:val{emitter}
+   (:accept* (:exchanger "ex2" "ctrl2" "data2") (:ref "rx*"))
+   (:put* (:val "v") (:exchanger "rx*" "ctrl" "data*"))])
+
+In an emit-receive exchange, the filter is applied by the emitter on put.
 
 @subsubsection[#:style '(unnumbered)]{From emitter to taker}
 
