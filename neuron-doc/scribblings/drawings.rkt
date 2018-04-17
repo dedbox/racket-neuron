@@ -1,143 +1,175 @@
 #lang racket/base
 
 (require pict
+         pict/convert
+         racket/class
+         racket/draw
          racket/function
+         racket/match
          scribble/base
          (only-in scribble/core make-style)
-         (only-in scribble/html-properties make-css-addition))
+         (only-in scribble/html-properties make-css-addition)
+         (only-in scribble/manual racket))
 
 (provide (all-defined-out))
 
-(define full-width-style
-  (make-style
-   "FullWidth"
-   (list (make-css-addition "scribblings/full-width.css"))))
+(define FONT-SIZE 16)
+(define BIG-FONT-SIZE 30)
+(define MIN-EDGE-LEN 60)
+
+;; (define full-width-style
+;;   (make-style
+;;    "FullWidth"
+;;    (list (make-css-addition "scribblings/full-width.css"))))
+
+(define blocks-style
+  (make-style "Blocks" (list (make-css-addition "scribblings/blocks.css"))))
 
 (define leading-spaces-style
   (make-style
    "LeadingSpaces"
    (list (make-css-addition "scribblings/leading-spaces.css"))))
 
-(define (bounded w h pict
-                 #:t [t (hline w 0)]
-                 #:r [r (vline 0 h)]
-                 #:b [b (hline w 0)]
-                 #:l [l (vline 0 h)]
-                 #:bg [bg "white"])
-  (define T (curryr ct-superimpose t))
-  (define R (curryr rc-superimpose r))
-  (define B (curryr cb-superimpose b))
-  (define L (curryr lc-superimpose l))
+(define (draw pict)
+  (if (pict-convertible? pict) (pict-convert pict) pict))
+
+;; Drawings
+
+(define (pad pict [t #f] [r #f] [b #f] [l #f])
+  (define w (pict-width pict))
+  (define h (pict-height pict))
+  (set! t (or t 5))
+  (set! r (or r 5))
+  (set! b (or b t 5))
+  (set! l (or l r 5))
+  (hc-append
+   (blank l (+ h t b))
+   (vc-append (blank w t) pict (blank w b))
+   (blank r (+ h t b))))
+
+(define (label content)
+  (text content 'roman FONT-SIZE))
+
+;; Block Diagrams
+
+(define-syntax-rule (block-diagram [content ...] ...)
+  (tabular
+   #:cell-properties '(((center border)))
+   (list (list content ...) ...)))
+
+(define-syntax-rule (blocks [content ...] ...)
+  (tabular
+   #:style blocks-style
+   (list (list content ...) ...)))
+
+(define (block str)
+  (pad (label str) 10 25))
+
+;; Semantic Diagrams
+
+(define val (compose pad label))
+
+(struct ~channel
+  (label in out)
+  #:property prop:pict-convertible
+  (match-lambda
+    [(~channel lbl ch-in ch-out)
+     (define pict (hc-append ch-in lbl ch-out))
+     (set! pict (pin-line pict ch-out lt-find ch-in lt-find))
+     (set! pict (pin-line pict ch-in lt-find ch-in rc-find))
+     (set! pict (pin-line pict ch-in rc-find ch-in lb-find))
+     (set! pict (pin-line pict ch-in lb-find ch-out lb-find))
+     (set! pict (pin-line pict ch-out lb-find ch-out rc-find))
+     (set! pict (pin-line pict ch-out rc-find ch-out lt-find))
+     pict]))
+
+(define (node content)
+  (define body (pad (label content) 10 10))
+  (define w (pict-width body))
+  (define h (pict-height body))
   (cc-superimpose
-   (T (R (B (L (filled-rectangle w h #:color bg #:draw-border? #f)))))
-   pict))
+   (filled-rectangle w h #:draw-border? #f #:color "white")
+   body
+   (rectangle w h)))
 
-(define (layer w h str
-               #:t [t (hline w 0)]
-               #:r [r (vline 0 h)]
-               #:b [b (hline w 0)]
-               #:l [l (vline 0 h)]
-               #:bg [bg "white"]
-               #:fg [fg "black"])
-  (bounded w h (colorize (text str 'roman 14) fg) #:t t #:r r #:b b #:l l #:bg bg))
+(define (channel content)
+  (define lbl (val content))
+  (when (< (pict-width lbl) 60)
+    (set! lbl (pad lbl 0 (/ (- 60 (pict-width lbl)) 2))))
+  (define w (pict-width lbl))
+  (define h (pict-height lbl))
+  (set! lbl (cc-superimpose
+             (filled-rectangle w h #:draw-border? #f #:color "white")
+             lbl))
 
-(define (label w h str #:fg [fg "black"])
-  (layer w h str #:t (blank) #:r (blank) #:b (blank) #:l (blank) #:fg fg))
+  (define (draw-ch-in dc dx dy)
+    (define old-brush (send dc get-brush))
+    (define old-pen (send dc get-pen))
+    (define top-fin (new dc-path%))
+    (send top-fin move-to 0 0)
+    (send top-fin line-to 5 0)
+    (send top-fin line-to 5 (/ h 2))
+    (send top-fin close)
+    (define bottom-fin (new dc-path%))
+    (send bottom-fin move-to 0 h)
+    (send bottom-fin line-to 5 h)
+    (send bottom-fin line-to 5 (/ h 2))
+    (send bottom-fin close)
+    (send dc set-brush (new brush% [color "white"] [style 'solid]))
+    (send dc set-pen (new pen% [width 1] [color "white"]))
+    (send dc draw-path top-fin dx dy)
+    (send dc draw-path bottom-fin dx dy)
+    (send dc set-brush old-brush)
+    (send dc set-pen old-pen))
+  (define ch-in (dc draw-ch-in 5 h))
 
-(define (channel w h name)
-  (define p (blank 10 h))
-  (set! p (pin-line p p rt-find p lt-find))
-  (set! p (pin-line p p lt-find p cc-find))
-  (set! p (pin-line p p cc-find p lb-find))
-  (set! p (pin-line p p lb-find p rb-find))
-  (define q (blank 10 h))
-  (set! q (pin-line q q lt-find q ct-find))
-  (set! q (pin-line q q ct-find q rc-find))
-  (set! q (pin-line q q rc-find q cb-find))
-  (set! q (pin-line q q cb-find q lb-find))
-  (hc-append p (layer w h #:r (blank) #:l (blank) name) q))
+  (define (draw-ch-out dc dx dy)
+    (define old-brush (send dc get-brush))
+    (define old-pen (send dc get-pen))
+    (define path (new dc-path%))
+    (send path move-to 0 0)
+    (send path line-to 5 (/ h 2))
+    (send path line-to 0 h)
+    (send dc set-brush (new brush% [color "white"] [style 'solid]))
+    (send dc set-pen (new pen% [width 1] [color "white"]))
+    (send dc draw-path path dx dy)
+    (send dc set-brush old-brush)
+    (send dc set-pen old-pen))
+  (define ch-out (dc draw-ch-out 5 h))
 
-(define (exchanger [name "ex"] [ctrl #f] [data #f])
-  (bounded
-   80 85
-   (vc-append
-    5
-    (text name 'roman 14)
-    (vc-append (or ctrl (channel 35 25 "ctrl"))
-               (or data (channel 35 25 "data")))
-    (blank))))
+  (~channel lbl ch-in ch-out))
 
-(define (edge pict lhs lhs-find rhs rhs-find
-              #:label [label (blank)]
-              #:start-angle [start-angle 0]
-              #:end-angle [end-angle 0])
+(define (big str)
+  (text str null BIG-FONT-SIZE))
+
+(define cdots (pad (big "···")))
+
+(define (--> lhs str rhs
+             [lhs-part #f] [lhs-find #f]
+             [rhs-part #f] [rhs-find #f])
+  (define lbl (if str (pad (label str) 5 15 2 5) (blank)))
+  (define lbl-width (pict-width lbl))
+  (define lhs-pict (pict-convert lhs))
+  (define rhs-pict (pict-convert rhs))
+  (define edge-len (max (+ lbl-width 20) MIN-EDGE-LEN))
+  (define pict (hc-append edge-len lhs-pict rhs-pict))
   (pin-arrow-line
-   8
-   pict lhs lhs-find rhs rhs-find
-   #:label label
-   #:start-angle start-angle
-   #:end-angle end-angle))
+   10 pict
+   (if lhs-part (lhs-part lhs) lhs-pict)
+   (or lhs-find rc-find)
+   (if rhs-part (rhs-part rhs) rhs-pict)
+   (or rhs-find lc-find)
+   #:label lbl))
 
-(define (offer name1 #:to name2)
-  (define ex1 (layer 45 35 name1))
-  (define ex2-ctrl (channel 35 25 "ctrl"))
-  (define ex2 (exchanger name2 ex2-ctrl))
-  (edge
-   (hc-append 80 (vc-append ex1 (blank 12)) ex2)
-   ex1 rc-find
-   ex2-ctrl lc-find
-   #:label (text "offer" null 14)))
+(struct ~offset
+  (target x y)
+  #:property prop:pict-convertible
+  (match-lambda
+    [(~offset tgt x y)
+     (pad tgt (max y 0) (- (min x 0)) (- (min y 0)) (max x 0))]))
 
-(define (accept #:from name1 name2)
-  (define ex-ctrl (channel 35 25 "ctrl"))
-  (define ex (exchanger name1 ex-ctrl))
-  (define ex* (layer 45 35 name2))
-  (edge
-   (hc-append 80 ex (vc-append ex* (blank 12)))
-   ex-ctrl rc-find
-   ex* lc-find
-   #:label (text "accept" null 14)))
-
-(define (ch-put name1 #:into name2)
-  (define v (cc-superimpose (blank 25 35) (text name1 'roman 14)))
-  (define ch (channel 35 25 name2))
-  (edge
-   (hc-append 80 v ch)
-   v rc-find
-   ch lc-find
-   #:label (text "put" null 14)))
-
-(define (ch-get #:from name1 name2)
-  (define ch (channel 35 25 name1))
-  (define v (cc-superimpose (blank 25 35) (text name2 'roman 14)))
-  (edge
-   (hc-append 80 ch v)
-   ch rc-find
-   v lc-find
-   #:label (text "get" null 14)))
-
-(define (punct str)
-  (text str null 40))
-
-(define (put name1 #:into name2)
-  (define ex-data (channel 35 25 "data"))
-  (define v (cc-superimpose (blank 25 35) (text name1 'roman 14)))
-  (define ex (exchanger name2 #f ex-data))
-  (edge
-   (hc-append 70 (vc-append (blank 38) v) ex)
-   v rc-find
-   ex-data lc-find
-   #:label (text "put" null 14)))
-
-(define (get #:from name1 name2)
-  (define ex-data (channel 35 25 "data"))
-  (define ex (exchanger name1 #f ex-data))
-  (define v (cc-superimpose (blank 25 35) (text name2 'roman 14)))
-  (edge
-   (hc-append 70 ex (vc-append (blank 38) v))
-   ex-data rc-find
-   v lc-find
-   #:label (text "get" null 14)))
+(define (offset tgt [x 0] [y 0])
+  (~offset (draw tgt) x y))
 
 (define (intersperse y xs)
   (if (or (null? xs) (null? (cdr xs)))
@@ -146,7 +178,45 @@
 
 (define (seq . picts)
   (apply (curry hc-append 20)
-         (intersperse (text ";" null 40) picts)))
+         (intersperse (big ";") picts)))
+
+(define row (curry hc-append 60))
+
+(struct ~exchanger
+  (name ctrl data)
+  #:property prop:pict-convertible
+  (match-lambda
+    [(~exchanger name ctrl data)
+     (vc-append (pad name 10 10 5 10) (pad ctrl 0 10) (pad data 0 10 10 10))]))
+
+(define (exchanger [name "ex"] [ctrl #f] [data #f])
+  (~exchanger
+   (label name)
+   (draw (or ctrl (channel "ctrl")))
+   (draw (or data (channel "data")))))
+
+(define (exchanger* [name "ex"])
+  (define body (val name))
+  (cc-superimpose
+   (filled-rounded-rectangle
+    (pict-width body)
+    (pict-height body)
+    #:color "white")
+   body))
+
+;; Document Structure
+
+(define-syntax-rule (named-picts [name pict] ... [last-name last-pict])
+  (tabular
+   #:style leading-spaces-style
+   #:cell-properties '((center))
+   (append
+    (list
+     (list (draw name) pict)
+     (list (blank 25) 'cont))
+    ...
+    (list
+     (list (draw last-name) last-pict)))))
 
 (define-syntax-rule (named-seqs [name pict1 picts ...] ...
                                 [last-name last-pict1 last-picts ...])
@@ -155,41 +225,90 @@
    #:cell-properties '((center))
    (append
     (list
-     (list (text name 'roman 14) (seq pict1 picts ...))
+     (list (draw name) (seq pict1 picts ...))
      (list (blank 25) 'cont))
     ...
     (list
-     (list (text last-name 'roman 14) (seq last-pict1 last-picts ...))))))
+     (list (draw last-name) (seq last-pict1 last-picts ...))))))
 
-(define (code-pict-def code pict)
-  (tabular
-   #:style 'boxed
-   #:cell-properties '((center))
-   (list
-    (list code)
-    (list (blank 10))
-    (list pict))))
-
-(define-syntax-rule (code-pict-defs [code pict] ... [last-code last-pict])
+(define-syntax-rule (define/picts [code ...] pict ... last-pict)
   (tabular
    #:style 'boxed
    #:cell-properties '((center))
    (append
-    (list (list code)
-          (list (blank 10))
-          (list pict)
-          (list (blank 25)))
+    (list
+     (list (racket code ...))
+     (list (blank 10)))
+    (list
+     (list (draw pict))
+     (list (blank 25)))
     ...
-    (list (list last-code)
-          (list (blank 10))
-          (list last-pict)))))
+    (list
+     (list (draw last-pict))))))
 
-(define-syntax-rule (picts pict ... last-pict)
+(define-syntax-rule (define*/picts
+                      ([code0 ...] pict0 ... last-pict0) ...
+                      ([code ...] pict ... last-pict))
   (tabular
-   #:style 'RBoxed
+   #:style 'boxed
    #:cell-properties '((center))
    (append
-    (list (list pict)
-          (list (blank 25)))
+    (append
+     (list
+      (list (racket code0 ...))
+      (list (blank 10)))
+     (list
+      (list (draw pict0))
+      (list (blank 25)))
+     ...
+     (list
+      (list (draw last-pict0))
+      (list (blank 10))))
     ...
-    (list (list last-pict)))))
+    (append
+     (list
+      (list (blank 20))
+      (list (racket code ...))
+      (list (blank 10)))
+     (list
+      (list (draw pict))
+      (list (blank 25)))
+     ...
+     (list
+      (list (draw last-pict)))))))
+
+;; Channel Operations
+
+(define (ch-put v ch)
+  (--> (val v) "put" (channel ch)))
+
+(define (ch-get ch v)
+  (--> (channel ch) "get" (val v)))
+
+;; Exchanger Operations
+
+(define (offer ex1 #:to ex2)
+  (--> (offset (exchanger* ex1) 0 -5) "offer" (exchanger ex2)
+       ~offset-target #f ~exchanger-ctrl))
+
+(define (accept #:from ex ex*)
+  (--> (exchanger ex) "accept" (offset (exchanger* ex*) 0 -5)
+       ~exchanger-ctrl #f ~offset-target))
+
+(define (put v #:into ex)
+  (--> (offset (val v) 0 52) "put" (exchanger ex)
+       ~offset-target #f ~exchanger-data))
+
+(define (get #:from ex v)
+  (--> (exchanger ex) "get" (offset (val v) 0 52)
+       ~exchanger-data #f ~offset-target))
+
+;; (define (accept* #:from name ctrl-name data-name pict)
+;;   (define ex-ctrl (channel 35 25 ctrl-name))
+;;   (define ex-data (channel 35 25 data-name))
+;;   (define ex (exchanger name ex-ctrl ex-data))
+;;   (edge
+;;    (hc-append 80 ex pict)
+;;    ex-ctrl rc-find
+;;    pict lc-find
+;;    #:label (text "accept" null 14)))

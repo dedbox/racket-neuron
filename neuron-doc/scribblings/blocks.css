@@ -1,0 +1,9 @@
+table.Blocks {
+    border-collapse: collapse;
+    border-style: hidden;
+}
+
+table.Blocks td {
+    border: 1px solid black;
+    text-align: center;
+}

@@ -1,7 +1,7 @@
 #lang scribble/manual
 
 @(require "base.rkt"
-          (prefix-in d: "drawings.rkt"))
+          (prefix-in : "drawings.rkt"))
 
 @title[
   #:style '(unnumbered)
@@ -20,68 +20,28 @@ evolution of concurrent, distributed, and decentralized run time environments
 and applications. At its core is a communication-based concurrency model and a
 structural pattern-based DSL for working with composable evaluators.
 
-@centered[
-  @vc-append[
-    10
-    @hc-append[
-      @d:label[100 35]{Control}
-      @vc-append[
-        @hc-append[
-          @d:layer[100 35]{Evaluators}
-          @d:layer[100 35]{Processes}
-        ]
-        @d:layer[200 35]{Data Flows}
-      ]
-    ]
-    @hc-append[
-      @d:label[100 35]{Operate}
-      @vc-append[
-        @hc-append[
-          @d:layer[100 35]{Consistent}
-          @d:layer[100 35]{Available}
-        ]
-        @d:layer[200 35]{Distributed Systems}
-      ]
-    ]
-    @hc-append[
-      @d:label[100 35]{Cooperate}
-      @vc-append[
-        @hc-append[
-          @d:layer[100 35]{Identity}
-          @d:layer[100 35]{Consensus}
-          @d:layer[100 35]{Capabilities}
-        ]
-        @hc-append[
-          @d:layer[100 35]{Trust}
-          @d:layer[100 35]{Reputation}
-          @d:layer[100 35]{Authorization}
-        ]
-        @hc-append[
-          @d:layer[200 35]{Agreement}
-          @d:layer[100 35]{Enforcement}
-        ]
-        @d:layer[300 35]{Decentralized Applications}
-      ]
-    ]
-    @hc-append[
-      @d:label[100 35]{Grow}
-      @vc-append[
-        @hc-append[
-          @vc-append[
-            @hc-append[
-              @d:layer[100 35]{Agency}
-              @d:layer[100 35]{Adaptation}
-              @d:layer[100 35]{Reproduction}
-            ]
-            @d:layer[300 35]{Organism}
-          ]
-          @d:layer[100 70]{Resources}
-        ]
-        @d:layer[400 35]{Software Ecosystem}
-      ]
-    ]
-  ]
-]
+@(:named-picts
+  [@:val{Control}
+   (:block-diagram
+    [@:block{Stepper} @:block{Process}]
+    [    @:block{Data Flow} 'cont     ])]
+  [@:val{Operate}
+   (:block-diagram
+    [@:block{Consistency} @:block{Availability}]
+    [     @:block{Distributed System} 'cont    ])]
+  [@:val{Cooperate}
+   (:block-diagram
+    [@:block{Identity} @:block{Consensus}  @:block{Capability}   ]
+    [@:block{Trust}    @:block{Reputation} @:block{Authorization}]
+    [       @:block{Agreement} 'cont       @:block{Enforcement}  ]
+    [       @:block{Decentralized Application} 'cont 'cont       ])]
+  [@:val{Grow}
+   (:block-diagram
+    [(:blocks
+      [@:block{Agency} @:block{Adaptation} @:block{Reproduction}]
+      [@:block{Organism} 'cont 'cont])
+     @:block{Resources}]
+    [@:block{Software Ecosystem} 'cont])])
 
 @section{Communication-based Concurrency}
 
@@ -97,60 +57,29 @@ When a @tech{process} is created, @tech{hooks} and @tech{handlers} may be
 installed. A @deftech{hook} is a function to be invoked automatically at
 specific points in the life time of a @tech{process}.
 
-@; nodes
-@(define starting-box (d:label 70 35 "starting"))
-@(define alive-box (d:label 70 35 "alive"))
-@(define stopping-box (d:label 70 35 "stopping"))
-@(define dying-box (d:label 70 35 "dying"))
-@(define dead-box (d:label 70 35 "dead"))
-@(define blank-box (d:label 70 35 ""))
-
-@; layout
-@(define life-cycle-diagram
-   (vl-append
-    35
-    starting-box
-    alive-box
-    (hc-append 35 stopping-box dying-box)
-    (hc-append 35 blank-box dead-box)))
-
-@; edges
-@(set! life-cycle-diagram
-  (pin-arrow-line
-   10
-   life-cycle-diagram
-   starting-box cb-find
-   alive-box ct-find))
-@(set! life-cycle-diagram
-  (pin-arrow-line
-   10
-   life-cycle-diagram
-   alive-box cb-find
-   stopping-box ct-find))
-@(set! life-cycle-diagram
-  (pin-arrow-line
-   10
-   life-cycle-diagram
-   stopping-box rc-find
-   dying-box lc-find))
-@(set! life-cycle-diagram
-  (pin-arrow-line
-   10
-   life-cycle-diagram
-   dying-box cb-find
-   dead-box ct-find))
-@(set! life-cycle-diagram
-  (pin-arrow-line
-   10
-   life-cycle-diagram
-   alive-box rc-find
-   dying-box ct-find
-   #:start-angle 0
-   #:end-angle (- (/ pi 2))
-   #:start-pull 1/2
-   #:end-pull 1/2))
-
-@centered[@life-cycle-diagram]
+@(centered
+  (let ()
+    (define starting @:val{starting})
+    (define alive @:val{alive})
+    (define stopping @:val{stopping})
+    (define dying @:val{dying})
+    (define dead @:val{dead})
+    (define blank1 @:val{ })
+    (define blank2 @:val{ })
+    (define diagram
+      (hc-append
+       60
+       (vc-append 40 starting blank1)
+       (vc-append 40 alive blank2)
+       (vc-append 40 stopping dying)
+       (vc-append 40 blank1 dead)))
+    (set! diagram (pin-arrow-line 10 diagram starting rc-find alive    lc-find))
+    (set! diagram (pin-arrow-line 10 diagram alive    rc-find stopping lc-find))
+    (set! diagram (pin-line          diagram alive    cb-find blank2   cc-find))
+    (set! diagram (pin-arrow-line 10 diagram blank2   cc-find dying    lc-find))
+    (set! diagram (pin-arrow-line 10 diagram stopping cb-find dying    ct-find))
+    (set! diagram (pin-arrow-line 10 diagram dying    rc-find dead     lc-find))
+    diagram))
 
 A @tech{process} is created in the starting state when another @tech{process}
 attempts to spawn a new thread of execution. The requesting @tech{process}
