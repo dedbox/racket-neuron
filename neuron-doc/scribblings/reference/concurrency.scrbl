@@ -39,286 +39,6 @@
   ]
 }
 
-@section{Exchanger}
-
-@margin-note{@secref{The Neuron Technical Report} explains the difference
-between exchangers and @rtech{channels}.}
-
-@(defmodule neuron/exchanger)
-
-An @deftech{exchanger} is a @rtech{channel}-based primitive that both
-synchronizes a pair of threads and passes a value from one to the other.
-Exchangers are synchronous, fair, and support multiple senders and receivers,
-but can not be used as @rtech{synchronizable events} directly.
-
-@; In any exchange, one thread puts a value and another thread get it. The
-@; @racket[channel-get] and @racket[channel-put] operations model this data flow
-@; explicitly. Unfortunately, channels offer no way to tell which side initiates
-@; the exchange. Exchangers enable this ability by making the initiating side
-@; provide the channel for the exchange.
-
-The participants of an exchange can be characterized by two orthogonal
-factors: control flow and data flow. In an exchange, one side waits for the
-other to initiate. If the initiating side is transmitting, then the waiting
-side is receiving. Similarly, if the initiating side is receiving, then the
-waiting side is transmitting. With this distinction, forwarding exchangers
-with precise control flow semantics can be defined.
-
-@defproc[(exchanger? [v any/c]) boolean?]{
-
-  Returns @racket[#t] if @racket[v] is an @tech{exchanger}, @racket[#f]
-  otherwise.
-
-}
-
-@defproc[(make-exchanger) exchanger?]{
-
-  Creates and returns a new exchanger.
-
-}
-
-@defproc[(offer [ex1 exchanger?] [#:to ex2 exchanger?]) void?]{
-
-  Blocks until @var[ex2] is ready to accept @var[ex1].
-
-}
-
-@defproc[(accept [#:from ex exchanger?]) exchanger?]{
-
-  Blocks until an exchanger is offered to @var[ex].
-
-}
-
-@defproc[(put [v any/c] [#:into ex exchanger?]) void?]{
-
-  Blocks until an exchanger is ready to get @var[v] from @var[ex].
-
-}
-
-@defproc[(get [#:from ex exchanger?]) any/c]{
-
-  Blocks until an exchanger puts a value into @var[ex].
-
-}
-
-@subsection{Process Exchangers}
-
-@(defmodule neuron/process/exchanger)
-
-@defproc[(giver [tx exchanger?] [rx exchanger?] [v any/c]) void?]{
-
-  Offers @var[tx] to @var[rx], then puts @var[v] into @var[tx].
-
-}
-
-@defproc[(taker [rx exchanger?]) any/c]{
-
-  Gets a value from an exchanger accepted from @var[rx].
-
-}
-
-@defproc[(receiver [rx exchanger?] [tx exchanger?]) any/c]{
-
-  Offers @var[rx] to @var[tx], then gets a value from @var[rx].
-
-}
-
-@defproc[(emitter [tx exchanger?] [v any/c]) void?]{
-
-  Puts @var[v] into an exchanger accepted from @var[tx].
-
-}
-
-@defproc[(forwarder [ex1 exchanger?] [ex2 exchanger?]) void?]{
-
-  Offers an exchanger accepted from @var[ex1] to @var[ex2].
-
-}
-
-@defproc[
-  (filterer [ex1 exchanger?]
-            [ex2 exchanger?]
-            [#:with proc (-> any/c any/c)])
-  void?
-]{
-
-  Forwards a value from @var[ex1] to @var[ex2]. Applies @var[proc] to the
-  value being forwarded.
-
-}
-
-@defproc[
-  (coupler [rx exchanger?] [tx exchanger?] [ex exchanger? (make-exchanger)])
-  void?
-]{
-
-  Offers @var[ex] to @var[rx] and @var[tx].
-
-}
-
-@defproc[(giver-evt [tx exchanger?] [rx exchanger?] [v any/c]) evt?]{
-
-  Returns a fresh @rtech{synchronizable event} that becomes @rtech{ready for
-  synchronization} when @racket[(giver #,(var tx) #,(var rx) #,(var v))] would
-  not block.
-
-}
-
-@defproc[(taker-evt [rx exchanger?]) evt?]{
-
-  Returns a constant @rtech{synchronizable event} that becomes @rtech{ready
-  for synchronization} when @racket[(taker #,(var rx))] would not block, and
-  the @rtech{synchronization result} is the value taken through @var[rx].
-
-}
-
-@defproc[(receiver-evt [rx exchanger?] [tx exchanger?]) evt?]{
-
-  Returns a constant @rtech{synchronizable event} that becomes @rtech{ready
-  for synchronization} when @racket[(receiver #,(var rx) #,(var tx))] would
-  not block, and the @rtech{synchronization result} is the value received
-  through @var[rx].
-
-}
-
-@defproc[(emitter-evt [tx exchanger?] [v any/c]) evt?]{
-
-  Returns a fresh @rtech{synchronizable event} that becomes @rtech{ready for
-  synchronization} when @racket[(emitter #,(var tx) #,(var v))] would not
-  block.
-
-}
-
-@defproc[(forwarder-evt [ex1 exchanger?] [ex2 exchanger?]) evt?]{
-
-  Returns a constant @rtech{synchronizable event} that becomes @rtech{ready
-  for synchronization} when @racket[(forwarder #,(var ex1) #,(var ex2))] would
-  not block.
-
-}
-
-@defproc[
-  (filterer-evt [ex1 exchanger?]
-                [ex2 exchanger?]
-                [#:with proc (-> any/c any/c)])
-  evt?
-]{
-
-  Returns a constant @rtech{synchronizable event} that becomes @rtech{ready
-  for synchronization} when @racket[(filterer #,(var ex1) #,(var ex2) #:with
-  #,(var proc))] would not block.
-
-}
-
-@defproc[
-  (coupler-evt [rx exchanger?] [tx exchanger?] [ex exchanger? (make-exchanger)])
-  evt?
-]{
-
-  Returns a constant @rtech{synchronizable event} that becomes @rtech{ready
-  for synchronization} when @racket[(coupler #,(var rx) #,(var tx) #,(var
-  ex))] would not block.
-
-}
-
-@section{Event}
-
-@(defmodule neuron/event)
-
-@defproc[(evt-set [evt evt?] ...) evt?]{
-
-  Returns a fresh @rtech{synchronizable event} that becomes @rtech{ready for
-  synchronization} when all @var[evt]s are @rtech{ready for synchronization}.
-  The @rtech{synchronization result} is a list of the @rtech{synchronization
-  results} of @var[evt]s in the order specified.
-
-  @examples[
-    #:eval neuron-evaluator
-    #:label "Example:"
-    (sync
-     (evt-set
-      (wrap-evt (thread (λ () (sleep 0.1) (write 1))) (λ _ 1))
-      (wrap-evt (thread (λ () (write 2))) (λ _ 2))))
-  ]
-}
-
-@defproc[
-  (evt-sequence [make-evt (-> evt?)] ...+
-                [#:then make-result (-> any/c any) values])
-  evt?
-]{
-
-  Returns a fresh @rtech{synchronizable event} that becomes @rtech{ready for
-  synchronization} when all events generated by @var[make-evt]s are
-  @rtech{ready for synchronization}. Calls each @var[make-evt] in the order
-  specified and immediately @racket[sync]s the result. Wtaps the last
-  @var[make-evt] in a @racket[handle-evt] that applies the
-  @rtech{synchronization result} of the previous event to @var[make-result].
-  The @rtech{synchronization result} of the sequence is the
-  @rtech{synchronization result} of its final event.
-
-  @examples[
-    #:eval neuron-evaluator
-    #:label "Example:"
-    (sync
-     (evt-sequence
-      (λ () (wrap-evt (thread (λ () (sleep 0.1) (write 1))) (λ _ 1)))
-      (λ () (wrap-evt (thread (λ () (write 2))) (λ _ 2)))))
-  ]
-}
-
-@defproc[
-  (evt-series [#:init init any/c (void)]
-              [make-evt (-> any/c evt?)] ...+
-              [#:then make-result (-> any/c any) values])
-  evt?
-]{
-
-  Returns a fresh @rtech{synchronizable event} that becomes @rtech{ready for
-  synchronization} when all events generated by @var[make-evt]s have become
-  @rtech{ready for synchronization}. Calls each @var[make-evt] in the order
-  specified and immediately @racket[sync]s the result. Applies @var[make-evt]
-  first to @var[init], then to the @rtech{synchronization result} of the
-  previous event. Wraps the last @var[make-evt] in a @racket[handle-evt] that
-  applies the @rtech{synchronization result} of the previous event to
-  @var[make-result]. The @rtech{synchronization result} of the series is the
-  @rtech{synchronization result} of its final event.
-
-  @examples[
-    #:eval neuron-evaluator
-    #:label "Example:"
-    (sync
-     (evt-series
-      #:init 1
-      (λ (x) (wrap-evt (thread (λ () (write x))) (λ _ (+ x 2))))
-      (λ (x) (wrap-evt (thread (λ () (write x))) (λ _ (+ x 4))))))
-  ]
-}
-
-@defproc[
-  (evt-loop [#:init init any/c (void)]
-            [next-evt (-> any/c evt?)]) evt?
-]{
-
-  Returns a fresh @rtech{synchronizable event} that is never @rtech{ready for
-  synchronization}. Repeatedly calls @var[next-evt] and immediately
-  @racket[sync]s the result. Applies @var[next-evt] first to @var[init], then
-  to the @rtech{synchronization result} of the previous event.
-
-  @examples[
-    #:eval neuron-evaluator
-    #:label "Example:"
-    (eval:error
-      (sync
-       (evt-loop
-        #:init 1
-        (λ (x)
-          (if (> x 5)
-              (raise x)
-              (wrap-evt always-evt (λ _ (+ x 1))))))))
-  ]
-}
-
 @section{Process}
 
 @(defmodule neuron/process)
@@ -329,7 +49,7 @@ are made from @rtech{threads} by replacing the @seclink["threadmbox" #:doc
 other features:
 
 @itemlist[
-  @item{A pair of @tech{exchangers}: one for transmitting and another for
+  @item{A pair of @ctech{mediators}: one for transmitting and another for
     receiving.}
   @item{An out-of-band @tech{command handler}.}
   @item{An @deftech{on-stop hook} that is called when a process ends
@@ -351,12 +71,10 @@ every procedure returns @racket[unhandled] or the list is empty,
   (define π
     (start
      (process deadlock)
-     #:command (bind ([A 1]
-                      [B (λ _ 2)])
-                     #:else unhandled)))
+     #:command (bindings [(A) 1] [(B) (λ _ 2)] #:else unhandled)))
   (π 'A)
   ((π 'B) 5)
-  (eval:error (π '(x y)))
+  (eval:error (π 'x 'y))
 ]
 
 A process can be used as a @rtech{synchronizable event}. A process is
@@ -402,18 +120,6 @@ Processes are created explicitly by the @racket[process] function. Use
 
   Calls @var[thunk] with no arguments in a new @tech{process}. Returns
   immediately with a @deftech{process descriptor} value.
-
-}
-
-@defproc[(process-tx [π process?]) transmitter?]{
-
-  Returns the transmitting @tech{exchanger} of @var[π].
-
-}
-
-@defproc[(process-rx [π process?]) transmitter?]{
-
-  Returns the receiving @tech{exchanger} of @var[π].
 
 }
 
@@ -517,31 +223,29 @@ Processes are created explicitly by the @racket[process] function. Use
 
 @defproc[(give [π process?] [v any/c (void)]) boolean?]{
 
-  Blocks until @var[π] is ready to accept @var[v] on its receiving
-  @tech{exchanger}, or until @var[π] is dead. Returns @racket[#t] if @var[π]
-  accepted @var[v], @racket[#f] otherwise.
+  Blocks until @var[π] is ready to accept @var[v], or until @var[π] is dead.
+  Returns @racket[#t] if @var[π] accepted @var[v], @racket[#f] otherwise.
 
 }
 
 @defproc[(take) any/c]{
 
-  Blocks until a sender is ready to provide a value on the receiving
-  @tech{exchanger} of the current process. Returns the provided value.
+  Blocks until a sender is ready to provide a value to the current process.
+  Returns the provided value.
 
 }
 
 @defproc[(recv [π process?]) any/c]{
 
-  Blocks until @var[π] is ready to provide a value through its transmitting
-  @tech{exchanger}, or until @var[π] is dead. Returns the provided value, or
-  @racket[eof] if @var[π] died.
+  Blocks until @var[π] is ready to provide a value, or until @var[π] is dead.
+  Returns the provided value, or @racket[eof] if @var[π] died.
 
 }
 
 @defproc[(emit [v any/c (void)]) void?]{
 
-  Blocks until a receiver is ready to accept the value @var[v] through the
-  transmitting @tech{exchanger} of the current process.
+  Blocks until a receiver is ready to accept the value @var[v] from the
+  current process.
 
 }
 
@@ -564,16 +268,15 @@ Processes are created explicitly by the @racket[process] function. Use
 
 }
 
-@defproc[(filter-to [π process?] [#:with proc (-> any/c any/c)]) void?]{
+@defproc[(filter-to [π process?] [f procedure?]) void?]{
 
-  Takes a value, applies @var[proc] to it, and gives the result to @var[π].
+  Takes a value, applies @var[f] to it, and gives the results to @var[π].
 
 }
 
-@defproc[(filter-from [π process?] [#:with proc (-> any/c any/c)]) void?]{
+@defproc[(filter-from [π process?] [f procedure?]) void?]{
 
-  Receives a value from @var[π], applies @var[proc] to it, and emits the
-  result.
+  Receives a value from @var[π], applies @var[f] to it, and emits the result.
 
 }
 
@@ -586,36 +289,34 @@ Processes are created explicitly by the @racket[process] function. Use
 @defproc[(give-evt [π process?] [v any/c (void)]) evt?]{
 
   Returns a fresh @rtech{synchronizable event} that becomes @rtech{ready for
-  synchronization} when @var[π] is ready to accept the value @var[v] on its
-  receiving @tech{exchanger}, or until @var[π] is dead. The
-  @rtech{synchronization result} is @racket[#t] if @var[π] accepted @var[v],
-  @racket[#f] otherwise.
+  synchronization} when @var[π] is ready to receive @var[v], or until @var[π]
+  is dead. The @rtech{synchronization result} is @racket[#t] if @var[π]
+  accepted @var[v], @racket[#f] otherwise.
 
 }
 
 @defproc[(take-evt) evt?]{
 
   Returns a constant @rtech{synchronizable event} that becomes @rtech{ready
-  for synchronization} when a sender is ready to provide a value on the
-  receiving @tech{exchanger} of the current process. The
-  @rtech{synchronization result} is the provided value.
+  for synchronization} when a sender is ready to provide a value to the
+  current process. The @rtech{synchronization result} is the provided value.
 
 }
 
 @defproc[(recv-evt [π process?]) evt?]{
 
   Returns a constant @rtech{synchronizable event} that becomes @rtech{ready
-  for synchronization} when @var[π] is ready to provide a value through its
-  transmitting @tech{exchanger}, or until @var[π] is dead. The
-  @rtech{synchronization result} is the provided value or @racket[eof].
+  for synchronization} when @var[π] is ready to provide a value, or until
+  @var[π] is dead. The @rtech{synchronization result} is the provided value or
+  @racket[eof].
 
 }
 
 @defproc[(emit-evt [v any/c (void)]) evt?]{
 
   Returns a fresh @rtech{synchronizable event} that becomes @rtech{ready for
-  synchronization} when a receiver is ready to accept the value @var[v]
-  through the transmitting @tech{exchanger} of the current process.
+  synchronization} when a receiver is ready to accept @var[v] from the current
+  process.
 
 }
 
@@ -635,19 +336,19 @@ Processes are created explicitly by the @racket[process] function. Use
 
 }
 
-@defproc[(filter-to-evt [π process?] [#:with proc (-> any/c any/c)]) evt?]{
+@defproc[(filter-to-evt [π process?] [f procedure?]) evt?]{
 
   Returns a constant @rtech{synchronizable event} that becomes @rtech{ready
-  for synchronization} when @racket[(filter-to #,(var π) #:with #,(var proc))]
-  would not block.
+  for synchronization} when @racket[(filter-to #,(var π) #,(var f))] would not
+  block.
 
 }
 
-@defproc[(filter-from-evt [π process?] [#:with proc (-> any/c any/c)]) evt?]{
+@defproc[(filter-from-evt [π process?] [f procedure?]) evt?]{
 
   Returns a constant @rtech{synchronizable event} that becomes @rtech{ready
-  for synchronization} when @racket[(filter-from #,(var π) #:with #,(var
-  proc))] would not block.
+  for synchronization} when @racket[(filter-from #,(var π) #,(var f))] would
+  not block.
 
 }
 
@@ -678,13 +379,13 @@ Processes are created explicitly by the @racket[process] function. Use
 
 @defproc[
   (proxy [π process?]
-         [#:filter-to to-proc (or/c (-> any/c any/c) #f) #f]
-         [#:filter-from from-proc (or/c (-> any/c any/c) #f) #f])
+         [f-to (or/c (-> any/c any/c) #f) #f]
+         [f-from (or/c (-> any/c any/c) #f) #f])
   process?
 ]{
 
-  Forwards values to and from @var[π]. Filters taken values with @var[to-proc]
-  when not @racket[#f]. Filters emitted values with @var[from-proc] when not
+  Forwards values to and from @var[π]. Filters taken values with @var[f-to]
+  when not @racket[#f]. Filters emitted values with @var[f-from] when not
   @racket[#f]. Stops @var[π] when it stops. Dies when @var[π] dies.
 
   @examples[
@@ -696,22 +397,22 @@ Processes are created explicitly by the @racket[process] function. Use
 
 @defproc[
   (proxy-to [π process?]
-            [#:with proc (or/c (-> any/c any/c) #f) #f])
+            [f (or/c (-> any/c any/c) #f) #f])
   process?
 ]{
 
-  Gives all values taken to @var[π]. Filters taken values with @var[proc] when
+  Gives all values taken to @var[π]. Filters taken values with @var[f] when
   not @racket[#f]. Stops @var[π] when it stops. Dies when @var[π] dies.
 
 }
 
 @defproc[
   (proxy-from [π process?]
-              [#:with proc (or/c (-> any/c any/c) #f) #f])
+              [f (or/c (-> any/c any/c) #f) #f])
   process?
 ]{
 
-  Emits all values emitted by @var[π]. Filters emitted values with @var[proc]
+  Emits all values emitted by @var[π]. Filters emitted values with @var[f]
   when not @racket[#f]. Stops @var[π] when it stops. Dies when @var[π] dies.
 
 }
@@ -794,20 +495,19 @@ Processes are created explicitly by the @racket[process] function. Use
     #:eval neuron-evaluator
     #:label "Example:"
     (define times
-      (let ([N -1])
-        (service
-         (λ _ (set! N (add1 N)) N)
-         #:on-drop (λ (k _) (displayln `(STOP ,k))))))
+      (service #:on-drop (λ (k _) (displayln `(STOP ,k)))))
     (for ([i 10])
-      (times `(add ,(server (curry * i)))))
-    (writeln
+      (times 'add i (server (curry * i))))
+    (pretty-print
      (for/list ([i 10])
-       (call times (list i 3))))
+       (give times i 3)
+       (apply-values cons (recv times))))
     (for ([i 10] #:when (even? i))
-      (times `(drop ,i)))
+      (times 'drop i))
     (writeln
      (for/list ([i 10] #:when (odd? i))
-       (call times (list i 4))))
+       (give times i 4)
+       (apply-values cons (recv times))))
     (stop times)
   ]
 }

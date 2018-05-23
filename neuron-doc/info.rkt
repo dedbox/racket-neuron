@@ -3,15 +3,17 @@
 (define collection "neuron")
 
 (define deps
-  '("base"
-    "neuron-lib"))
+  '("base"))
 
 (define build-deps
-  '("at-exp-lib"
+  '("cmx"
+    "draw-lib"
+    "event-lang"
+    "neuron-lib"
     "pict-lib"
     "racket-doc"
     "sandbox-lib"
     "scribble-lib"))
 
 (define scribblings
-  '(("scribblings/main.scrbl" (multi-page) (library) "neuron")))
+  '(("scribblings/neuron.scrbl" (multi-page) (library) "neuron")))

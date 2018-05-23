@@ -11,4 +11,3 @@ messaging, along with components for building dynamic data-flow networks.
 
 @include-section["guide.scrbl"]
 @include-section["reference.scrbl"]
-@include-section["tech-report.scrbl"]

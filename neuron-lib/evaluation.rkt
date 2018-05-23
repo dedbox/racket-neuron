@@ -1,59 +1,49 @@
 #lang racket/base
 
-(require racket/match)
+(require
+ racket/match
+ (for-syntax racket/base
+             syntax/parse))
 
-(provide bind)
+(provide bindings)
 
-(define-syntax bind
-  (syntax-rules ()
-    [(_ ([q q-exp ...] ...)
-        #:match ([p p-exp ...] ...)
-        #:else default)
-     (match-lambda
-       [`q q-exp ...] ...
-       [p p-exp ...] ...
-       [_ default])]
-
-    [(_ ([q q-exp ...] ...)
-        #:match ([p p-exp ...] ...))
-     (match-lambda
-       [`q q-exp ...] ...
-       [p p-exp ...] ...)]
-
-    [(_ ([q q-exp ...] ...)
-        #:else default)
-     (match-lambda
-       [`q q-exp ...] ...
-       [_ default])]
-
-    [(_ ([q q-exp ...] ...))
-     (match-lambda
-       [`q q-exp ...] ...)]))
+(define-syntax (bindings stx)
+  (define-syntax-class rule
+    (pattern [(pat ...) body:expr ...+]))
+  (syntax-parse stx
+    [(bindings
+      r:rule ...+
+      (~optional (~seq #:match m:expr ...+))
+      (~optional (~seq #:else d:expr ...+)))
+     #`(match-lambda*
+         [`(r.pat ...) r.body ...] ...
+         #,@(or (attribute m) null)
+         #,@(if (attribute d) (list #'[_ d ...]) null))]))
 
 (module+ test
   (require rackunit)
 
   (test-case
-    "bind"
-    (define f (bind ([a 1]) #:match (['b 2]) #:else 0))
+    "bindings"
+    (define f (bindings [(a) 1] #:match ['(b) 2] #:else 0))
     (check = 1 (f 'a))
     (check = 2 (f 'b))
     (check = 0 (f 'z)))
 
   (test-case
-    "bind:calc"
+      "bindings:calc"
     (define vars (make-hasheq))
     (define calc
-      (bind
-        ([(,a + ,b) (+ (calc a) (calc b))]
-         [(,a ^ ,b) (expt (calc a) (calc b))]
-         [(,a = ,b)
-          (hash-set! vars a (calc b))
-          (hash-ref vars a)])
-        #:match
-        ([(? number? n) n]
-         [(? symbol? x) (hash-ref vars x #f)])
-        #:else 'stuck))
+      (bindings
+       [((,a + ,b)) (+ (calc a) (calc b))]
+       [((,a ^ ,b)) (expt (calc a) (calc b))]
+       [((,a = ,b))
+        (hash-set! vars a (calc b))
+        (hash-ref vars a)]
+       #:match
+       [(list (? number? n)) n]
+       [(list (? symbol? x)) (hash-ref vars x #f)]
+       #:else 'stuck))
     (check = (calc '(a = 2)) 2)
     (check = (calc '(b = ((a ^ 3) + (3 ^ a)))) 17)
     (check = (hash-ref vars 'a) 2)

@@ -67,9 +67,7 @@
                               (forever (emit (prs sock))))))
                   (handle-evt sock (λ _ (emit eof)))))))
      #:on-stop (λ () (close-socket sock))
-     #:command (bind ([parser prs]
-                      [socket sock])
-                     #:else unhandled))))
+     #:command (bindings [(parser) prs] [(socket) sock] #:else unhandled))))
 
 (define (encoder prn)
   (λ (sock)
@@ -82,9 +80,7 @@
                               (forever (prn (take) sock)))))
                   (handle-evt sock die)))))
      #:on-stop (λ () (close-socket sock))
-     #:command (bind ([printer prn]
-                      [socket sock])
-                     #:else unhandled))))
+     #:command (bindings [(printer) prn] [(socket) sock] #:else unhandled))))
 
 (define (codec prs prn)
   (define make-decoder (decoder prs))
@@ -95,10 +91,11 @@
     (start
      (stream enc dec)
      #:on-stop (λ () (stop enc) (stop dec))
-     #:command (bind ([decoder dec]
-                      [encoder enc]
-                      [socket sock])
-                     #:else unhandled))))
+     #:command (bindings
+                [(decoder) dec]
+                [(encoder) enc]
+                [(socket) sock]
+                #:else unhandled))))
 
 (define (make-codec-type name prs prn)
   (values

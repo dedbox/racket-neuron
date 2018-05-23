@@ -181,26 +181,6 @@
   (apply (curry hc-append 10)
          (intersperse (big ";") picts)))
 
-(struct ~exchanger
-  (name ctrl data)
-  #:property prop:pict-convertible
-  (match-lambda
-    [(~exchanger name ctrl data)
-     (define body
-       (vc-append (pad name 10 10 5 10) (pad ctrl 0 10) (pad data 0 10 10 10)))
-     (cc-superimpose
-      (filled-rounded-rectangle
-       (pict-width body)
-       (pict-height body)
-       -0.125 #:color "white")
-      body)]))
-
-(define (exchanger [name "ex"] [ctrl "ctrl"] [data "data"])
-  (~exchanger
-   (label name)
-   (draw (channel ctrl))
-   (draw (channel data))))
-
 (define (ref name)
   (define body (val name))
   (cc-superimpose
@@ -294,37 +274,3 @@
   (--> (label "get")
        (channel ch) '(0 0) #f #f
        (val v) '(0 0) #f #f))
-
-;; Exchanger Operations
-
-(define (offer* ex1 ex2 [ofs '(0 -5)])
-  (--> (label "offer")
-       ex1 ofs #f #f
-       ex2 '(0 0) ~exchanger-ctrl #f))
-
-(define (accept* ex ex* [ofs '(0 -5)])
-  (--> (label "accept")
-      ex '(0 0) ~exchanger-ctrl #f
-      ex* ofs #f #f))
-
-(define (put* v ex [ofs '(0 52)])
-  (--> (label "put")
-       v ofs #f #f
-       ex '(0 0) ~exchanger-data #f))
-
-(define (get* ex v [ofs '(0 52)])
-  (--> (label "get")
-       ex '(0 0) ~exchanger-data #f
-       v ofs #f #f))
-
-(define (offer ex1 #:to ex2)
-  (offer* (ref ex1) (exchanger ex2)))
-
-(define (accept #:from ex ex*)
-  (accept* (exchanger ex) (ref ex*)))
-
-(define (put v #:into ex)
-  (put* (val v) (exchanger ex)))
-
-(define (get #:from ex v)
-  (get* (exchanger ex) (val v)))

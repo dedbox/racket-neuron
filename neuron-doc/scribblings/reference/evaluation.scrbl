@@ -6,38 +6,40 @@
 
 @(defmodule neuron/evaluation #:packages ("neuron"))
 
-The @racket[bind] form offers an alternative to @racket[match-lambda] for
-specifying @tech{steppers} with Racket's @secref["match" #:doc '(lib
-"scribblings/reference/reference.scrbl")] sub-system.
+The @racket[bindings] form is an alternative syntax for @racket[match-lambda*]
+for specifying multi-valued @tech{steppers} with Racket's @secref["match"
+#:doc '(lib "scribblings/reference/reference.scrbl")] syntax.
 
 @defform[
-  (bind ([quoted-pat q-exp ...] ...) maybe-match maybe-else)
+  (bindings rule ...+ maybe-match maybe-else)
   #:grammar
-  [(maybe-match (code:line)
-                (code:line #:match ([pat p-exp ...] ...)))
+  [(rule [(quoted-pat ...) body ...+])
+   (maybe-match (code:line)
+                (code:line #:match [(pat ...) body ...+] ...+))
    (maybe-else (code:line)
-               (code:line #:else default))]
+               (code:line #:else default-expr))]
 ]{
 
-  Creates a @racket[match-lambda] with @racket[quoted-pat]s implicitly
-  @racket[quasiquote]d. If @racket[pat] clauses are given, they are appended
-  to the @racket[quoted-pat] clauses unmodified. If @racket[default] is given,
-  a final catch-all clause that returns @racket[default] is added.
+  Creates a @racket[match-lambda*] with @var[quoted-pat]s implicitly
+  @racket[quasiquote]d. If @var[pat] clauses are given, they are appended to
+  the @racket[quoted-pat] clauses unmodified. If a @var[default-expr] is
+  given, a final catch-all clause that evaluates @racket[default-expr] is
+  added.
 
   @examples[
     #:eval neuron-evaluator
     #:label "Example:"
     (define vars (make-hash))
     (define calc
-      (bind
-        ([(,a + ,b) (+ (calc a) (calc b))]
-         [(,a ^ ,b) (expt (calc a) (calc b))]
-         [(,a = ,b)
-          (hash-set! vars a (calc b))
-          (hash-ref vars a)])
+      (bindings
+        [((,a + ,b)) (+ (calc a) (calc b))]
+        [((,a ^ ,b)) (expt (calc a) (calc b))]
+        [((,a = ,b))
+         (hash-set! vars a (calc b))
+         (hash-ref vars a)]
         #:match
-        ([(? number? n) n]
-         [(? symbol? x) (hash-ref vars x)])
+        [(list (? number? n)) n]
+        [(list (? symbol? x)) (hash-ref vars x)]
         #:else 'stuck))
     (calc '(a = 2))
     (calc '(b = ((a ^ 3) + (3 ^ a))))

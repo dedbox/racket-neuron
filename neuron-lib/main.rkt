@@ -1,16 +1,26 @@
 #lang racket/base
 
-(require neuron/reprovide)
-
-(reprovide
+(require
  neuron/codec
  neuron/evaluation
  neuron/event
- neuron/exchanger
  neuron/network/tcp
+ neuron/network/udp
  neuron/process
  neuron/process/control
- neuron/process/exchanger
  neuron/process/messaging
  neuron/socket
  neuron/syntax)
+
+(provide
+ (all-from-out
+  neuron/codec
+  neuron/evaluation
+  neuron/event
+  neuron/network/tcp
+  neuron/network/udp
+  neuron/process
+  neuron/process/control
+  neuron/process/messaging
+  neuron/socket
+  neuron/syntax))

@@ -1,31 +1,34 @@
 #lang racket/base
 
 (require
- neuron/exchanger
+ cmx
+ event
+ neuron/syntax
  racket/contract/base
- (only-in racket/list flatten))
+ (only-in racket/list flatten)
+ (for-syntax racket/base
+             syntax/parse))
 
 (provide
  start
  (contract-out
   [unhandled symbol?]
-  [struct unhandled-command
-    ([process process?]
-     [args (listof any/c)])]
+  [struct unhandled-command ([process process?] [args list?])]
   [process? predicate/c]
   [process (-> (-> any) process?)]
-  [process-tx (-> process? exchanger?)]
-  [process-rx (-> process? exchanger?)]
-  [command (-> process? (listof any/c) any)]
+  [process-in (-> process? mediator?)]
+  [process-out (-> process? mediator?)]
+  [command (-> process? any/c ... any)]
+  [command* (-> process? list? any)]
   [stop (-> process? void?)]
   [kill (-> process? void?)]
   [wait (-> process? void?)]
   [dead? (-> process? boolean?)]
   [alive? (-> process? boolean?)]
   [current-process (-> process?)]
-  [quit (->* () #:rest (listof any/c) void?)]
-  [die (->* () #:rest (listof any/c) void?)]
-  [deadlock (->* () #:rest (listof any/c) void?)]))
+  [quit (->* () #:rest list? void?)]
+  [die (->* () #:rest list? void?)]
+  [deadlock (->* () #:rest list? void?)]))
 
 (define unhandled
   (string->unreadable-symbol "unhandled"))
@@ -33,12 +36,12 @@
 (struct unhandled-command (process args) #:transparent)
 
 (struct process
-  (thread dead-cont stop-cont command raised tx rx)
+  (thread dead-cont stop-cont command raised in out)
   #:constructor-name make-process
   #:omit-define-syntaxes
   #:property prop:evt (λ (π) (wait-evt π))
   #:property prop:procedure (λ (π . vs)
-                              (define result (command π vs))
+                              (define result (command* π vs))
                               (if (eq? result unhandled)
                                   (raise (unhandled-command π vs))
                                   result)))
@@ -52,21 +55,24 @@
        (raise (car raised)))
      π)))
 
-(define (command π vs)
+(define (command π . vs)
+  (command* π vs))
+
+(define (command* π vs)
   (let loop ([handlers (process-command π)])
     (if (null? handlers)
         unhandled
-        (let ([result (apply (car handlers) vs)])
-          (if (equal? result unhandled)
+        (let ([results (apply-values list (apply (car handlers) vs))])
+          (if (member unhandled results)
               (loop (cdr handlers))
-              result)))))
+              (apply values results))))))
 
 (define current-process
   (make-parameter
    (make-process (current-thread)
                  #f #f #f #f
-                 (make-exchanger)
-                 (make-exchanger))))
+                 (make-mediator)
+                 (make-mediator))))
 
 (define (quit . _)
   ((process-stop-cont (current-process))))
@@ -112,23 +118,23 @@
                     (channel-get ready-ch)
                     command-hook
                     raised
-                    (make-exchanger)
-                    (make-exchanger)))
+                    (make-mediator)
+                    (make-mediator)))
     (channel-put ready-ch π)
     π))
 
-(define-syntax start
-  (syntax-rules ()
-    [(start body ... #:on-stop on-stop)
-     (parameterize ([current-on-stop (cons on-stop (current-on-stop))])
-       (start body ...))]
-    [(start body ... #:on-dead on-dead)
-     (parameterize ([current-on-dead (cons on-dead (current-on-dead))])
-       (start body ...))]
-    [(start body ... #:command command)
-     (parameterize ([current-command (cons command (current-command))])
-       (start body ...))]
-    [(start π) π]))
+(define-syntax (start stx)
+  (syntax-parse stx
+    [(start
+      make-π:expr
+      (~alt (~seq #:on-stop on-stop:expr)
+            (~seq #:on-dead on-dead:expr)
+            (~seq #:command command:expr)) ...)
+     #'(parameterize
+           ([current-on-stop (cons (list on-stop ...) (current-on-stop))]
+            [current-on-dead (cons (list on-dead ...) (current-on-dead))]
+            [current-command (cons (list command ...) (current-command))])
+         make-π)]))
 
 (define (stop π)
   (break-thread (process-thread π) 'hang-up)
@@ -259,8 +265,8 @@
   (test-case
     "A process invokes its command handler when applied as a procedure."
     (define handled #f)
-    ((start (process deadlock) #:command (λ (v) (set! handled v))) #t)
-    (check-true handled))
+    ((start (process deadlock) #:command (λ vs (set! handled vs))) 1 2 3)
+    (check-equal? handled '(1 2 3)))
 
   ;; synchronizable event
 

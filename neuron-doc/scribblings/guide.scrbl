@@ -46,10 +46,10 @@ structural pattern-based DSL for working with composable evaluators.
 @section{Communication-based Concurrency}
 
 Neuron uses a concurrency model of lightweight processes communicating over
-named synchronous @tech{exchangers}. Neuron processes extend Racket
-@rtech{threads} with support for life cycle hooks and two orthogonal lines of
-communication. In other words, a @tech{process} is like a @rtech{thread} that
-can clean up after itself and keep ``secrets.''
+named, synchronous channel-like @ctech{mediators}. Neuron processes extend
+Racket @rtech{threads} with support for life cycle hooks and two orthogonal
+lines of communication. In other words, a @tech{process} is like a
+@rtech{thread} that can clean up after itself and keep ``secrets.''
 
 @subsection{The Process Life Cycle}
 
@@ -200,7 +200,7 @@ Processes can be combined to provide restricted or revocable access to others.
        (kill π-ref)
        (give A) (wait A) (code:comment "A reads dead π-ref")
        (displayln `(IN-B ,(recv π))))))
-   (sync (evt-set A B #:then void))
+   (sync (async-void A B))
 ]
 
 @subsection{Working with Threads}
@@ -213,7 +213,7 @@ Processes and @rtech{threads} can be combined.
   (define (producer i)
     (thread (λ () (sleep (/ (random) 10.0)) (emit i))))
   (define (make-producers)
-    (apply evt-set (for/list ([i 10]) (producer i))))
+    (async-void* (for/list ([i 10]) (producer i))))
   (define π (process (λ () (sync (make-producers)))))
   (for/list ([_ 10])
     (recv π))
@@ -225,7 +225,7 @@ Processes and @rtech{threads} can be combined.
   (define (consumer)
     (thread (λ () (write (take)))))
   (define (make-consumers)
-    (apply evt-set (for/list ([_ 10]) (consumer))))
+    (async-void* (for/list ([_ 10]) (consumer))))
   (define π (process (λ () (sync (make-consumers)))))
   (for ([i 10])
     (give π i))
