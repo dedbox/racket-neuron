@@ -76,10 +76,10 @@
     (define snk-host (car (snk 'address)))
     (define snk-port (cadr (snk 'address)))
     (check-true (give snk 123 'abc 987 'zyx))
-    (check-equal? (apply-values list (recv src)) (list snk-host snk-port 123))
-    (check-equal? (apply-values list (recv src)) (list snk-host snk-port 'abc))
-    (check-equal? (apply-values list (recv src)) (list snk-host snk-port 987))
-    (check-equal? (apply-values list (recv src)) (list snk-host snk-port 'zyx)))
+    (check-equal? (cdr (apply-values list (recv src))) (list snk-port 123))
+    (check-equal? (cdr (apply-values list (recv src))) (list snk-port 'abc))
+    (check-equal? (cdr (apply-values list (recv src))) (list snk-port 987))
+    (check-equal? (cdr (apply-values list (recv src))) (list snk-port 'zyx)))
 
   (test-case "udp-source + udp-sink (ipv4)"
     (define src (udp-source read "0.0.0.0"))
@@ -102,13 +102,13 @@
     (define src-index
       (for/hash ([i 10]
                  [(src-port _) (in-hash srcs)])
-        (check-true (give snk "::1" src-port i i))
+        (check-true (give snk "localhost" src-port i i))
         (values i src-port)))
     (for ([j 10])
       (define src-port (hash-ref src-index j))
       (define src (hash-ref srcs src-port))
-      (check-equal? (apply-values list (recv src)) `("::1" ,snk-port ,j))
-      (check-equal? (apply-values list (recv src)) `("::1" ,snk-port ,j))))
+      (check-equal? (cdr (apply-values list (recv src))) (list snk-port j))
+      (check-equal? (cdr (apply-values list (recv src))) (list snk-port j))))
 
   (test-case "udp-source + udp-sink-to (ipv4)"
     (define srcs
