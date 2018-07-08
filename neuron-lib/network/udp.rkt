@@ -73,12 +73,13 @@
     (define src (udp-source read))
     (define src-port (cadr (src 'address)))
     (define snk (udp-sink writeln "localhost" src-port))
+    (define snk-host (car (snk 'address)))
     (define snk-port (cadr (snk 'address)))
     (check-true (give snk 123 'abc 987 'zyx))
-    (check-equal? (apply-values list (recv src)) `("::1" ,snk-port 123))
-    (check-equal? (apply-values list (recv src)) `("::1" ,snk-port abc))
-    (check-equal? (apply-values list (recv src)) `("::1" ,snk-port 987))
-    (check-equal? (apply-values list (recv src)) `("::1" ,snk-port zyx)))
+    (check-equal? (apply-values list (recv src)) (list snk-host snk-port 123))
+    (check-equal? (apply-values list (recv src)) (list snk-host snk-port 'abc))
+    (check-equal? (apply-values list (recv src)) (list snk-host snk-port 987))
+    (check-equal? (apply-values list (recv src)) (list snk-host snk-port 'zyx)))
 
   (test-case "udp-source + udp-sink (ipv4)"
     (define src (udp-source read "0.0.0.0"))

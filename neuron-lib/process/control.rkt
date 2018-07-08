@@ -110,8 +110,9 @@
        (bind (choice-evt π1 π2) die))))
    #:on-stop (λ () (stop π1) (stop π2))
    #:command (bindings [(1) π1] [(2) π2] #:else unhandled)
-   #:command π1
-   #:command π2))
+   #:command (list
+              (curry command π1)
+              (curry command π2))))
 
 (define (service #:on-drop [on-drop void])
   (define peers (make-hash))
@@ -475,7 +476,7 @@
 
     (for/list ([i 10])
       (define π (process (λ () (forever (channel-put ch (+ i (take)))))))
-      (check-pred void? (svc `(add ,i ,π))))
+      (check-pred void? (svc 'add i π)))
 
     (for ([j 10])
       (process (λ () (give svc j j)))
@@ -485,8 +486,8 @@
       (process (λ () (give svc j 10)))
       (check = (sync ch) (+ j 10)))
 
-    (for ([i 10] #:when (even? i)) (check-true (svc `(drop ,i))))
-    (for ([i 10] #:when (even? i)) (check-false (svc `(drop ,i))))
+    (for ([i 10] #:when (even? i)) (check-true (svc 'drop i)))
+    (for ([i 10] #:when (even? i)) (check-false (svc 'drop i)))
 
     (for ([j 10] #:when (odd? j))
       (process (λ () (give svc j j)))
@@ -496,8 +497,8 @@
       (process (λ () (give svc j 10)))
       (check = (sync ch) (+ j 10)))
 
-    (for ([i 10] #:when (odd? i)) (check-true (svc `(drop ,i))))
-    (for ([i 10] #:when (odd? i)) (check-false (svc `(drop ,i))))
+    (for ([i 10] #:when (odd? i)) (check-true (svc 'drop i)))
+    (for ([i 10] #:when (odd? i)) (check-false (svc 'drop i)))
 
     (check-pred null? (svc 'peers)))
 
@@ -505,8 +506,7 @@
     (define svc (service))
     (define ch (make-channel))
     (for ([i 10])
-      (define π (process (λ () (forever (emit (channel-get ch))))))
-      (svc `(add ,i ,π)))
+      (svc 'add i (process (λ () (forever (emit (channel-get ch)))))))
     (for ([j 10])
       (thread (λ () (channel-put ch j)))
       (check equal? (sync (fmap list (recv-evt svc))) (list j j))))
@@ -514,7 +514,7 @@
   (test-case "service stop"
     (define svc (service #:on-drop (λ (_ π) (stop π))))
     (define ch (make-channel))
-    (for ([i 10]) (svc `(add ,i ,(process deadlock))))
+    (for ([i 10]) (svc 'add i (process deadlock)))
     (define πs (map cdr (svc 'peers)))
     (check-true (andmap alive? πs))
     (stop svc)
