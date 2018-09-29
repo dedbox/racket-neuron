@@ -5,6 +5,7 @@
  neuron/evaluation
  neuron/process
  neuron/process/messaging
+ neuron/socket
  neuron/syntax
  racket/contract/base
  racket/function
@@ -27,7 +28,7 @@
       (define buf (make-bytes #xFFFF))
       (forever
        (define-values (len host port) (udp-receive! udp-sock buf))
-       (define in (open-input-string (bytes->string/utf-8 buf #f 0 len)))
+       (define in (string-socket #:in (bytes->string/utf-8 buf #f 0 len)))
        (let loop ()
          (define v (prs in))
          (unless (eof-object? v) (emit host port v) (loop)))
@@ -44,7 +45,7 @@
     (λ ()
       (forever
        (define vs (apply-values list (take)))
-       (define out (open-output-bytes))
+       (define out (string-socket #:out #t))
        (for ([v vs]) (prn v out))
        (udp-send* udp-sock (get-output-bytes out #t)))))
    #:on-dead (λ () (udp-close udp-sock))
