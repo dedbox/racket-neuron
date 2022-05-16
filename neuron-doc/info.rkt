@@ -7,7 +7,8 @@
     "neuron-lib"))
 
 (define build-deps
-  '("at-exp-lib"
+  '("draw-lib"
+    "at-exp-lib"
     "pict-lib"
     "racket-doc"
     "sandbox-lib"
